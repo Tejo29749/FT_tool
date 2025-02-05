@@ -773,7 +773,7 @@ class MultipleTest():
         plt.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
 
         plt.subplot(2,1,2)
-        if len(ul_nr) > 0:
+        if len(ul_lte) > 0:
             ul_lte_line = plt.plot(self.UNIXtime_to_datetime(ul_lte),self.kbpslist_to_mbpslist(ul_lte),label='UL 4G PHY', color='green', linestyle='-')
         if len(ul_nr) > 0:
             ul_nr_line  = plt.plot(self.UNIXtime_to_datetime(ul_nr),self.kbpslist_to_mbpslist(ul_nr),label='UL 5G PHY', color='blue', linestyle='-')
