@@ -369,6 +369,7 @@ class MultipleTest():
                                 +"6.锁band时需要提前开端口, 输入 0 即为屏蔽对应网络\n\n"
                                 +"7.默认Band可从policy.xml获取(PCAT/EFSExplorer\n/policyman/carrier_policy.xml)后填写在config.ini\n进行重置\n\n"
                                 +"8.网络状态刷新会占用电脑性能，建议不用时关闭\n\n"
+                                +"9.勾选全局快捷键后，可在任意界面触发快捷键\n\n"
                                 +"by ThunderSoft29749")
         self.tips_label.pack(anchor='w',padx=10,pady=10)
 
