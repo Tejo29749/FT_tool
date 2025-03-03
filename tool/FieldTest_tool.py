@@ -5,27 +5,22 @@
 import win32gui
 import win32con
 import win32api
-import win32clipboard
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
-import time, pyperclip, configparser
+import time, pyperclip, configparser, keyboard
 import threading
 import os, re, sys
 import subprocess
 from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
-
-sys.path.append('C:\Program Files (x86)\Qualcomm\QUTS\Support\python')
 	
 import QutsClient
 import Common.ttypes
-
 import DiagService.DiagService
 import DiagService.constants
 import DiagService.ttypes
-
 import QXDMService.QxdmService
 import QXDMService.constants
 import QXDMService.ttypes
@@ -78,6 +73,21 @@ class MultipleTest():
             self.save_log_checkbutton.config(command=self.save_log)
             self.start_button.config(command=self.skip)
 
+    def set_global_hotkey(self):
+        if self.is_global_hotkey.get():
+            keyboard.add_hotkey("f1", self.on_f1, args=(' '), suppress=True)
+            keyboard.add_hotkey("f2", self.on_f2, args=(' '), suppress=True)
+            keyboard.add_hotkey("f3", self.on_f3, args=(' '), suppress=True)
+            keyboard.add_hotkey("f4", self.on_f4, args=(' '), suppress=True)
+            keyboard.add_hotkey("f5", self.on_f5, args=(' '), suppress=True)
+            keyboard.add_hotkey("f6", self.on_f6, args=(' '), suppress=True)
+            keyboard.add_hotkey("f7", self.on_f7, args=(' '), suppress=True)
+            keyboard.add_hotkey("f9", self.on_f9, args=(' '), suppress=True)
+            keyboard.add_hotkey("f11", self.on_f11, args=(' '), suppress=True)
+            keyboard.add_hotkey("f12", self.on_f12, args=(' '), suppress=True)
+        else:
+            keyboard.clear_all_hotkeys()
+
     def set_init_window(self):
         self.main_window.title("FT多次测试工具")
         self.main_window.geometry('350x600')
@@ -125,6 +135,7 @@ class MultipleTest():
 
         # 创建变量用于保存多选框的状态
         self.is_auto = BooleanVar()
+        self.is_global_hotkey = BooleanVar()
         self.is_off_airplane_mode = BooleanVar()
         self.is_make_call = BooleanVar()
         self.is_pickup_call = BooleanVar()
@@ -152,8 +163,14 @@ class MultipleTest():
             self.device_connect_check_timer = self.main_window.after(5000,lambda: self.new_thread_to_do(device_connect_check))
         device_connect_check()
 
-        self.auto_checkbutton = Checkbutton(self.fieldtest, text="F9> 全自动", variable = self.is_auto, command=self.update_command)
-        self.auto_checkbutton.pack(anchor='w',padx=5,pady=2)
+        self.hotkey_button_frame = Frame(self.fieldtest)
+        self.hotkey_button_frame.pack(anchor='w', padx=5, pady=2)
+
+        self.auto_checkbutton = Checkbutton(self.hotkey_button_frame, text="F9> 全自动", variable = self.is_auto, command=self.update_command)
+        self.auto_checkbutton.pack(side=LEFT, padx=5, pady=2)
+
+        self.global_hotkey_checkbutton = Checkbutton(self.hotkey_button_frame, text="全局快捷键", variable = self.is_global_hotkey, command=self.set_global_hotkey)
+        self.global_hotkey_checkbutton.pack(side=RIGHT,padx=60,pady=2)
 
         self.airplanemode_status_label = Label(self.fieldtest, text="")
         self.airplanemode_status_label.pack(anchor='w',padx=20,pady=2)
@@ -198,7 +215,7 @@ class MultipleTest():
         self.log_name_label.pack(anchor='w',padx=20,pady=2)
         log_name = StringVar()
         log_name.set(self.config.get('Settings', 'log_name'))
-        self.log_name_entry = Entry(self.fieldtest, width = 40, textvariable=log_name)
+        self.log_name_entry = Entry(self.fieldtest, width = 100, textvariable=log_name)
         self.log_name_entry.pack(anchor='w',padx=25,pady=2)
 
         self.repeat_times_label = Label(self.fieldtest, text="重复次数:")
@@ -608,6 +625,7 @@ class MultipleTest():
         return " ".join(map(str, NSAorSANV_int_list)).encode('utf-8')
 
     def set_NV(self, networkTechnology):
+        self.main_window.focus_set()
         client = QutsClient.QutsClient("TestAutomation")
         devManager = client.getDeviceManager()
 
@@ -714,6 +732,9 @@ class MultipleTest():
                 parts = line.split()
                 timestamp = re.search(r'(\d{2}:\d{2}:\d{2})\.\d+', parts[1]).group(1)
                 timestamp = datetime.strptime(timestamp, "%H:%M:%S")
+                # timestamp = re.search(r'(\d{2}:\d{2}:\d{2}\.\d{6})', parts[1]).group(1)
+                # timestamp = datetime.strptime(f"{'1980-01-01'} {timestamp}", "%Y-%m-%d %H:%M:%S.%f")
+                # print(int(timestamp.timestamp() * 1_000_000))
                 # direction = 'UL' if 'UL' in line else 'DL'
                 throughput_search = re.search(r'tput\.[Kk]bps:\[.*?PHY:\s*(\d+)', line)
                 if throughput_search:
@@ -830,44 +851,44 @@ class MultipleTest():
     def on_f1(self, event): 
         self.is_off_airplane_mode.set(not self.is_off_airplane_mode.get())
         if not self.is_auto.get():
-            # self.new_thread_to_do(self.disable_airplane_mode)
-            self.disable_airplane_mode()
+            self.new_thread_to_do(self.disable_airplane_mode)
+            # self.disable_airplane_mode()
         
     def on_f2(self, event): 
         self.is_make_call.set(not self.is_make_call.get())
         if not self.is_auto.get():
-            # self.new_thread_to_do(self.make_call)
-            self.make_call()
+            self.new_thread_to_do(self.make_call)
+            # self.make_call()
 
     def on_f3(self, event): 
         self.is_pickup_call.set(not self.is_pickup_call.get())
         if not self.is_auto.get():
-            # self.new_thread_to_do(self.pickup_call)
-            self.pickup_call()
+            self.new_thread_to_do(self.pickup_call)
+            # self.pickup_call()
 
     def on_f4(self, event): 
         self.is_fast_test.set(not self.is_fast_test.get())
         if not self.is_auto.get():
-            # self.new_thread_to_do(self.fast_test)
-            self.in_run(self.fast_test)
+            self.new_thread_to_do(self.fast_test)
+            # self.in_run(self.fast_test)
 
     def on_f5(self, event): 
         self.is_terminate_call.set(not self.is_terminate_call.get())
         if not self.is_auto.get():
-            # self.new_thread_to_do(self.terminate_call)
-            self.terminate_call()
+            self.new_thread_to_do(self.terminate_call)
+            # self.terminate_call()
 
     def on_f6(self, event): 
         self.is_on_airplane_mode.set(not self.is_on_airplane_mode.get())
         if not self.is_auto.get():
-            # self.new_thread_to_do(self.enable_airplane_mode)
-            self.enable_airplane_mode()
+            self.new_thread_to_do(self.enable_airplane_mode)
+            # self.enable_airplane_mode()
 
     def on_f7(self, event): 
         self.is_save_log.set(not self.is_save_log.get())
         if not self.is_auto.get():
-            # self.new_thread_to_do(self.save_log)
-            self.save_log()
+            self.new_thread_to_do(self.save_log)
+            # self.save_log()
 
     def on_f9(self, event): 
         self.is_auto.set(not self.is_auto.get())
