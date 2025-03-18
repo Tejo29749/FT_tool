@@ -458,7 +458,7 @@ class MultipleTest():
     def fast_test(self):
         os.system('adb shell am start -a android.intent.action.VIEW -d https://fast.com --ez create_new_tab false')
         # os.system('adb shell input keyevent KEYCODE_EXPLORER')
-        # os.system('adb shell input swipe 500 500 500 1000')
+        # os.system('adb shell input keyevent KEYCODE_F5')
         self.complete = 0
         self.wait_progress()
         # TODO 关闭标签页
@@ -738,6 +738,8 @@ class MultipleTest():
                 # print(int(timestamp.timestamp() * 1_000_000))
                 # direction = 'UL' if 'UL' in line else 'DL'
                 throughput_search = re.search(r'tput\.[Kk]bps:\[.*?PHY:\s*(\d+)', line)
+                if not throughput_search:
+                    throughput_search = re.search(r'PHY\|\s*(\d+)\s*Kbps', line)
                 if throughput_search:
                     throughput = int(throughput_search.group(1))
                     if 'DL' in line:
