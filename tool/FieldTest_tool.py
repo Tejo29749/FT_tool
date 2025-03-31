@@ -8,9 +8,9 @@ import win32api
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
-import time, pyperclip, configparser, keyboard
+import time, pyperclip, configparser, keyboard#, pyautogui
 import threading
-import os, re, sys
+import os, re, sys, random, string
 import subprocess
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -40,7 +40,7 @@ class MultipleTest():
         # self.qxdm_handle = win32gui.FindWindow("Qt5152QWindowIcon", "QXDM_Pro_5.2.520 [LOGGING] - Qualcomm HS-USB Diagnostics 90DB (COM14) - Legacy Diag")
         # savelog_handle = win32gui.FindWindow("#32770", "Save Item Store (Cancel To Discard)?")
         # print(win32gui.GetClassName(handle))
-        self.counter = 0
+        self.counter = 1
         self.complete = 0
         self.auto_timer_id = None
         self.wait_timer_id = None
@@ -67,7 +67,7 @@ class MultipleTest():
             self.off_airplane_mode_checkbutton.config(command=self.disable_airplane_mode)
             self.make_call_checkbutton.config(command=self.make_call)
             self.pickup_call_checkbutton.config(command=self.pickup_call)
-            self.fast_test_checkbutton.config(command=lambda: self.in_run(self.fast_test))
+            self.fast_test_checkbutton.config(command=self.fast_test)
             self.terminate_call_checkbutton.config(command=self.terminate_call)
             self.on_airplane_mode_checkbutton.config(command=self.enable_airplane_mode)
             self.save_log_checkbutton.config(command=self.save_log)
@@ -90,7 +90,7 @@ class MultipleTest():
 
     def set_init_window(self):
         self.main_window.title("FT多次测试工具")
-        self.main_window.geometry('350x600')
+        self.main_window.geometry('400x600')
         self.main_window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # 创建 Notebook 组件
@@ -141,6 +141,7 @@ class MultipleTest():
         self.is_pickup_call = BooleanVar()
         self.is_fast_test = BooleanVar()
         self.is_terminate_call = BooleanVar()
+        self.is_wait_release = BooleanVar()
         self.is_on_airplane_mode = BooleanVar()
         self.is_save_log = BooleanVar()
         self.is_accelerometer_rotation = BooleanVar()
@@ -170,7 +171,7 @@ class MultipleTest():
         self.auto_checkbutton.pack(side=LEFT, padx=5, pady=2)
 
         self.global_hotkey_checkbutton = Checkbutton(self.hotkey_button_frame, text="全局快捷键", variable = self.is_global_hotkey, command=self.set_global_hotkey)
-        self.global_hotkey_checkbutton.pack(side=RIGHT,padx=60,pady=2)
+        self.global_hotkey_checkbutton.pack(side=LEFT,padx=70,pady=2)
 
         self.airplanemode_status_label = Label(self.fieldtest, text="")
         self.airplanemode_status_label.pack(anchor='w',padx=20,pady=2)
@@ -179,31 +180,42 @@ class MultipleTest():
         self.off_airplane_mode_checkbutton = Checkbutton(self.fieldtest, text="F1> 关闭飞行模式", variable = self.is_off_airplane_mode, command=self.disable_airplane_mode)
         self.off_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=2)  
 
-        self.make_call_checkbutton = Checkbutton(self.fieldtest, text="F2> 拨打电话", variable = self.is_make_call, command=self.make_call)
-        self.make_call_checkbutton.pack(anchor='w',padx=20,pady=2)
-
-        self.call_number_label = Label(self.fieldtest, text="电话号码:")
-        self.call_number_label.pack(anchor='w',padx=20,pady=2)
+        self.make_call_frame = Frame(self.fieldtest)
+        self.make_call_frame.pack(anchor='w', padx=20, pady=2)
+        self.make_call_checkbutton = Checkbutton(self.make_call_frame, text="F2> 拨打电话:", variable = self.is_make_call, command=self.make_call)
+        self.make_call_checkbutton.pack(side=LEFT,padx=0,pady=2)
         call_number = StringVar()
         call_number.set(self.config.get('Settings', 'call_number'))
-        self.call_number_entry = Entry(self.fieldtest, textvariable=call_number)
-        self.call_number_entry.pack(anchor='w',padx=25,pady=2)
+        self.call_number_entry = Entry(self.make_call_frame, width=15, textvariable=call_number)
+        self.call_number_entry.pack(side=LEFT,padx=5,pady=2)
 
         self.pickup_call_checkbutton = Checkbutton(self.fieldtest, text="F3> 接听电话", variable = self.is_pickup_call, command=self.pickup_call)
         self.pickup_call_checkbutton.pack(anchor='w',padx=20,pady=2)
 
-        self.fast_test_checkbutton = Checkbutton(self.fieldtest, text="F4> 开启fast测速", variable = self.is_fast_test, command=lambda: self.in_run(self.fast_test))
+        self.fast_test_checkbutton = Checkbutton(self.fieldtest, text="F4> 开启fast测速", variable = self.is_fast_test, command=self.fast_test)
         self.fast_test_checkbutton.pack(anchor='w',padx=20,pady=2)
 
-        self.wait_time_label = Label(self.fieldtest, text="等待时长(秒):")
-        self.wait_time_label.pack(anchor='w',padx=20,pady=2)
+        self.wait_time_frame = Frame(self.fieldtest)
+        self.wait_time_frame.pack(anchor='w', padx=20, pady=2)
+        self.wait_time_label = Label(self.wait_time_frame, text="等待时长(秒):")
+        self.wait_time_label.pack(side=LEFT,padx=0,pady=2)
         wait_time = StringVar()
         wait_time.set(self.config.get('Settings', 'wait_time'))
-        self.wait_time_entry = Entry(self.fieldtest, textvariable=wait_time)
-        self.wait_time_entry.pack(anchor='w',padx=25,pady=2)
+        self.wait_time_entry = Entry(self.wait_time_frame, width=6, textvariable=wait_time)
+        self.wait_time_entry.pack(side=LEFT,padx=5,pady=2)
 
         self.terminate_call_checkbutton = Checkbutton(self.fieldtest, text="F5> 挂断电话", variable = self.is_terminate_call, command=self.terminate_call)
         self.terminate_call_checkbutton.pack(anchor='w',padx=20,pady=2)
+
+        self.release_frame = Frame(self.fieldtest)
+        self.release_frame.pack(anchor='w', padx=20, pady=2)
+        self.wait_release_checkbutton = Checkbutton(self.release_frame, text="等待release(不稳定)", variable = self.is_wait_release,)
+        self.wait_release_checkbutton.pack(side=LEFT,padx=0,pady=2)
+        self.platform = IntVar(value=1)  # 默认选中选项 1
+        self.qual_radio = Radiobutton(self.release_frame, text="高通", variable=self.platform, value=1)
+        self.qual_radio.pack(side=LEFT,padx=5,pady=2)
+        self.MTK_radio = Radiobutton(self.release_frame, text="MTK", variable=self.platform, value=2)
+        self.MTK_radio.pack(side=LEFT,padx=5,pady=2)
 
         self.on_airplane_mode_checkbutton = Checkbutton(self.fieldtest, text="F6> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
         self.on_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=2)
@@ -218,12 +230,14 @@ class MultipleTest():
         self.log_name_entry = Entry(self.fieldtest, width = 100, textvariable=log_name)
         self.log_name_entry.pack(anchor='w',padx=25,pady=2)
 
-        self.repeat_times_label = Label(self.fieldtest, text="重复次数:")
-        self.repeat_times_label.pack(anchor='w',padx=5,pady=2)
+        self.repeat_frame = Frame(self.fieldtest)
+        self.repeat_frame.pack(anchor='w', padx=10, pady=2)
+        self.repeat_times_label = Label(self.repeat_frame, text="重复次数:")
+        self.repeat_times_label.pack(side=LEFT,padx=0,pady=2)
         repeat_times = StringVar()
         repeat_times.set("1")
-        self.repeat_times_entry = Entry(self.fieldtest, textvariable=repeat_times)
-        self.repeat_times_entry.pack(anchor='w',padx=10,pady=2)
+        self.repeat_times_entry = Entry(self.repeat_frame, width=6, textvariable=repeat_times)
+        self.repeat_times_entry.pack(side=LEFT,padx=5,pady=2)
 
         self.startstop_button_frame = Frame(self.fieldtest)
         self.startstop_button_frame.pack(anchor='w', padx=10, pady=10)
@@ -291,8 +305,19 @@ class MultipleTest():
         self.SMS_send_button = Button(self.othertools, text='发送短信', command=self.send_SMS)
         self.SMS_send_button.pack(anchor='w',padx=15,pady=5)
 
+        self.push_file_frame = Frame(self.othertools)
+        self.push_file_frame.pack(anchor='w', padx=10, pady=2)
+        self.push_file_lable = Label(self.push_file_frame, text="传输测试文件到设备(GB):")
+        self.push_file_lable.pack(side=LEFT,padx=0,pady=2)
+        testfile_size = StringVar()
+        testfile_size.set(self.config.get('Settings', 'testfile_size'))
+        self.file_size_entry = Entry(self.push_file_frame, width = 4, textvariable=testfile_size)
+        self.file_size_entry.pack(side=LEFT,padx=5,pady=2)
+        self.push_file_button = Button(self.push_file_frame, text=' 传输 ', command=self.push_file)
+        self.push_file_button.pack(side=LEFT,padx=5,pady=2)
+
         self.Band2NV_lable = Label(self.othertools, text="高通专用锁Band: (输入例:3-18-28)")
-        self.Band2NV_lable.pack(anchor='w',padx=10,pady=10)
+        self.Band2NV_lable.pack(anchor='w',padx=10,pady=5)
         # self.lockBandtip1_lable = Label(self.othertools, text="LTE:修改 NV 65633")
         # self.lockBandtip1_lable.pack(anchor='w',padx=10,pady=5)
         # self.lockBandtip2_lable = Label(self.othertools, text="NSA:修改 NV 74213")
@@ -393,10 +418,6 @@ class MultipleTest():
         time.sleep(0.1)
         win32gui.SendMessage(handle, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, end_tmp)
 
-    def in_run(self, callback):
-        self.is_run.set(True)
-        callback()
-
     def enable_airplane_mode(self):
         if os.popen('adb shell settings get global airplane_mode_on').read().strip() == "0":  #airplane_mode_off
             os.system('adb root')
@@ -469,16 +490,41 @@ class MultipleTest():
         def set_progress():
             nonlocal count
             count += 1
-            if not self.is_run.get():
-                self.progress_label.config(text="进度: 已中止")
-            elif count <= int(self.wait_time_entry.get()):
-                self.progress_label.config(text="进度: 已等待 " + str(count) + " 秒")
+            if count <= int(self.wait_time_entry.get()):
+                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 已等待 " + str(count) + " 秒")
                 self.wait_timer_id = self.main_window.after(1000, set_progress)
             else:
-                self.progress_label.config(text="进度: 已完成等待 " + str(self.wait_time_entry.get()) + " 秒！")
+                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 已完成等待 " + str(self.wait_time_entry.get()) + " 秒！")
                 self.complete = 1
-        
-        set_progress()
+                # self.wait_release()
+        set_progress()  
+
+    def get_release(self):
+        os.system('adb logcat -b all -c') 
+        #QXDM
+        if self.platform.get() == 1:
+            output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
+            output2 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "Unknown dns: "], universal_newlines=True)
+        #MTK
+        if self.platform.get() == 2:
+            output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 4|handleConnectionStateReportInd: 0, 255, 5"], universal_newlines=True)
+        time.sleep(5) #延长等待release
+
+    def wait_release(self):
+        get_release_thread = threading.Thread(target=self.get_release)
+        get_release_thread.start()
+        count = 0
+        def check_release():
+            nonlocal count
+            if get_release_thread.is_alive():
+                count += 1
+                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 等待 release " + str(count) + " 秒")
+                self.wait_timer_id = self.main_window.after(1000, check_release)
+            else:
+                get_release_thread.join()
+                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 已经 release")
+                self.complete = 2
+        check_release()
 
     def terminate_call(self):
         if self.get_call_state() != 0:
@@ -493,17 +539,52 @@ class MultipleTest():
         self.log_name_entry.delete(0, END)  # 清空输入框
         self.log_name_entry.insert(0, new_log_name)  # 插入新的值
 
+        # # hwnd = win32gui.GetForegroundWindow()
+        # # if hwnd:
+        # #     # 获取窗口类名
+        # #     class_name = win32gui.GetClassName(hwnd)
+        # #     print(f"当前窗口句柄: {hwnd}, 窗口类名: {class_name}")
+        # # else:
+        # #     print("未找到前台窗口")
+        # if hwnd_QXDM := win32gui.FindWindow("Qt5152QWindowIcon", None):
+        #     win32gui.ShowWindow(hwnd_QXDM, win32con.SW_SHOW)  # 先恢复窗口
+        #     time.sleep(0.5)
+        #     win32gui.SetForegroundWindow(hwnd_QXDM)  # 设置前台窗口
+        #     time.sleep(0.5)
+        #     # x, y = pyautogui.position()
+        #     # pyautogui.click(100, 1)
+        #     time.sleep(0.5)
+        #     keyboard.press_and_release("ctrl+i")
+        #     time.sleep(0.5)
+        #     keyboard.press_and_release("ctrl+v")
+        #     time.sleep(0.5)
+        #     keyboard.press_and_release("enter")
+        #     # pyautogui.moveTo(x, y)
+        # elif hwnd_ELT := win32gui.FindWindow("WindowsForms10.Window.8.app.0.f96fc5_r7_ad1", None):
+        #     win32gui.ShowWindow(hwnd_ELT, win32con.SW_RESTORE)  # 先恢复窗口
+        #     win32gui.SetForegroundWindow(hwnd_ELT)  # 设置前台窗口
+        #     time.sleep(0.5)
+        #     # x, y = pyautogui.position()
+        #     # pyautogui.click(100, 1)
+        #     time.sleep(0.1)
+        #     keyboard.press_and_release("ctrl+i")
+        #     # pyautogui.moveTo(x, y)
+        # else:
+        #     print(f"自动保存失败")
+
     def begin(self):
-        self.counter = 0
+        self.main_window.focus_set()
+        self.counter = 1
+        self.complete = 0
         self.is_run.set(True)
 
         def repeat():
-            self.counter += 1
             if self.is_off_airplane_mode.get() and self.is_run.get():
                 self.disable_airplane_mode()
             if self.is_make_call.get() and self.is_run.get():
                 while self.get_mVoiceRegState() != "0(IN_SERVICE)" and self.is_run.get(): #等待语音服务至可用
                     time.sleep(1)
+                time.sleep(2)
                 self.make_call()
                 while self.get_mForegroundCallState() != 1 and self.is_run.get(): #拨号后等待至开始通话
                     time.sleep(1)
@@ -522,21 +603,37 @@ class MultipleTest():
 
             def delay_to_do():
                 if self.is_run.get():
-                    if self.is_terminate_call.get():
-                        # print("is_terminate_call")
-                        time.sleep(1)
-                        self.terminate_call()
-                    if self.is_on_airplane_mode.get():
-                        # print("is_on_airplane_mode")
-                        time.sleep(1)
-                        self.enable_airplane_mode()
-                    if self.is_save_log.get():
-                        # print("is_save_log")
-                        self.save_log()
-                    
-                    if self.counter < int(self.repeat_times_entry.get()):
-                        repeat()
-            self.auto_timer_id = self.main_window.after(int(self.wait_time_entry.get())*1000 + 500, delay_to_do)
+                    if self.complete == 1:
+                        if self.is_terminate_call.get():
+                            time.sleep(1)
+                            self.terminate_call()
+
+                        def do_after_release():
+                            if self.is_on_airplane_mode.get():
+                                time.sleep(1)
+                                self.enable_airplane_mode()
+                            if self.is_save_log.get():
+                                time.sleep(1)
+                                self.save_log()
+                            
+                            if self.counter < int(self.repeat_times_entry.get()):
+                                self.counter += 1
+                                time.sleep(2)
+                                repeat()
+
+                        if self.is_wait_release.get():
+                            self.wait_release()
+                            def delay_for_complate_2():
+                                if self.complete == 2:
+                                    do_after_release()
+                                else:
+                                    self.wait_timer_id = self.main_window.after(1000, delay_for_complate_2)
+                            delay_for_complate_2()
+                        else:
+                            do_after_release()
+                    else:
+                        self.auto_timer_id = self.main_window.after(1000, delay_to_do)
+            delay_to_do()
                 
         repeat()
 
@@ -583,6 +680,18 @@ class MultipleTest():
                   +' --es sms_body \"' + self.SMS_content_entry.get() + '\" --ez exit_on_sent false')
         time.sleep(1)
         # os.system('adb shell input tap 990 2160')
+
+    def random_alphanum(self, n=3):
+        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
+
+    def push_file(self):
+        self.main_window.focus_set()
+        file_size = self.file_size_entry.get()
+        file_name = f"testfile_{file_size}GB_{self.random_alphanum()}"
+        os.system(f"fsutil file createnew {file_name} " + str(int(file_size)*10**9))
+        os.system(f"adb push {file_name} /sdcard/")
+        if os.path.exists(file_name):  # 检查文件是否存在，避免错误
+            os.remove(file_name)
         
     def on_focus_in_Band2NV_entry(self,event):
         self.Band2NV_lable.config(text="高通专用锁Band: (输入例:3-18-28)")
@@ -688,9 +797,11 @@ class MultipleTest():
 
     def banned_Packages(self):
         os.system('adb shell iptables -I OUTPUT -j DROP') 
+        os.system('adb shell ip6tables -I OUTPUT -j DROP') 
     
     def unbanned_Packages(self):
         os.system('adb shell iptables -I OUTPUT -j ACCEPT') 
+        os.system('adb shell ip6tables -I OUTPUT -j ACCEPT') 
 
     #网络状态
     def refresh(self):
@@ -783,9 +894,9 @@ class MultipleTest():
         plt.legend()    # 添加图例
         dl_ax = plt.gca()
         if len(dl_nr) > len(dl_lte):
-            dl_ax.xaxis.set_major_locator(MultipleLocator(int(len(dl_nr)/x_locator)))
+            dl_ax.xaxis.set_major_locator(MultipleLocator(int(len(dl_nr)/x_locator)+1))
         else:
-            dl_ax.xaxis.set_major_locator(MultipleLocator(int(len(dl_lte)/x_locator)))
+            dl_ax.xaxis.set_major_locator(MultipleLocator(int(len(dl_lte)/x_locator)+1))
 
         plt.xticks(rotation = 45)
         plt.title('DL Throughput')
@@ -804,9 +915,9 @@ class MultipleTest():
         plt.legend()    # 添加图例
         ul_ax = plt.gca()
         if len(ul_nr) > len(ul_lte):
-            ul_ax.xaxis.set_major_locator(MultipleLocator(int(len(ul_nr)/x_locator)))
+            ul_ax.xaxis.set_major_locator(MultipleLocator(int(len(ul_nr)/x_locator)+1))
         else:
-            ul_ax.xaxis.set_major_locator(MultipleLocator(int(len(ul_lte)/x_locator)))
+            ul_ax.xaxis.set_major_locator(MultipleLocator(int(len(ul_lte)/x_locator)+1))
         plt.xticks(rotation = 45)
         plt.title('UL Throughput')
         plt.xlabel('Time (hh:mm:ss)')
@@ -830,6 +941,7 @@ class MultipleTest():
             'log_name': self.log_name_entry.get(),
             'SMS_number': self.SMS_number_entry.get(),
             'SMS_content': self.SMS_content_entry.get(),
+            'testfile_size': self.file_size_entry.get(),
             'default_LTE_Band': self.config.get('Settings', 'default_LTE_Band'),
             'default_NSAorSA_Band': self.config.get('Settings', 'default_NSAorSA_Band'),
         }
@@ -873,7 +985,7 @@ class MultipleTest():
         self.is_fast_test.set(not self.is_fast_test.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.fast_test)
-            # self.in_run(self.fast_test)
+            # self.fast_test()
 
     def on_f5(self, event): 
         self.is_terminate_call.set(not self.is_terminate_call.get())
