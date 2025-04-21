@@ -211,11 +211,11 @@ class MultipleTest():
         self.release_frame.pack(anchor='w', padx=20, pady=2)
         self.wait_release_checkbutton = Checkbutton(self.release_frame, text="等待release(不稳定)", variable = self.is_wait_release,)
         self.wait_release_checkbutton.pack(side=LEFT,padx=0,pady=2)
-        self.platform = IntVar(value=1)  # 默认选中选项 1
-        self.qual_radio = Radiobutton(self.release_frame, text="高通", variable=self.platform, value=1)
-        self.qual_radio.pack(side=LEFT,padx=5,pady=2)
-        self.MTK_radio = Radiobutton(self.release_frame, text="MTK", variable=self.platform, value=2)
-        self.MTK_radio.pack(side=LEFT,padx=5,pady=2)
+        self.network_technology = IntVar(value=1)  # 默认选中选项 1
+        self.LTE_radio = Radiobutton(self.release_frame, text="LTE", variable=self.network_technology, value=1)
+        self.LTE_radio.pack(side=LEFT,padx=5,pady=2)
+        self.NR_radio = Radiobutton(self.release_frame, text="NR", variable=self.network_technology, value=2)
+        self.NR_radio.pack(side=LEFT,padx=5,pady=2)
 
         self.on_airplane_mode_checkbutton = Checkbutton(self.fieldtest, text="F6> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
         self.on_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=2)
@@ -290,18 +290,23 @@ class MultipleTest():
         self.accelerometer_rotation_checkbutton = Checkbutton(self.othertools, text="屏幕自动旋转", variable = self.is_accelerometer_rotation, command=self.set_accelerometer_rotation)
         self.accelerometer_rotation_checkbutton.pack(anchor='w',padx=20,pady=2)
 
-        self.SMS_number_lable = Label(self.othertools, text="短信号码: ")
-        self.SMS_number_lable.pack(anchor='w',padx=10,pady=2)
+        self.SMS_number_frame = Frame(self.othertools)
+        self.SMS_number_frame.pack(anchor='w', padx=10, pady=2)
+        self.SMS_number_lable = Label(self.SMS_number_frame, text="短信号码: ")
+        self.SMS_number_lable.pack(side=LEFT,padx=0,pady=0)
         SMS_number = StringVar()
         SMS_number.set(self.config.get('Settings', 'SMS_number'))
-        self.SMS_number_entry = Entry(self.othertools, width = 40, textvariable=SMS_number)
-        self.SMS_number_entry.pack(anchor='w',padx=25,pady=2)
-        self.SMS_content_lable = Label(self.othertools, text="短信内容: ")
-        self.SMS_content_lable.pack(anchor='w',padx=10,pady=2)
+        self.SMS_number_entry = Entry(self.SMS_number_frame, width=20, textvariable=SMS_number)
+        self.SMS_number_entry.pack(side=LEFT,padx=5,pady=0)
+
+        self.SMS_content_frame = Frame(self.othertools)
+        self.SMS_content_frame.pack(anchor='w', padx=10, pady=2)
+        self.SMS_content_lable = Label(self.SMS_content_frame, text="短信内容: ")
+        self.SMS_content_lable.pack(side=LEFT,padx=0,pady=0)
         SMS_content = StringVar()
         SMS_content.set(self.config.get('Settings', 'SMS_content'))
-        self.SMS_content_entry = Entry(self.othertools, width = 40, textvariable=SMS_content)
-        self.SMS_content_entry.pack(anchor='w',padx=25,pady=2)
+        self.SMS_content_entry = Entry(self.SMS_content_frame, width=20, textvariable=SMS_content)
+        self.SMS_content_entry.pack(side=LEFT,padx=5,pady=0)
         self.SMS_send_button = Button(self.othertools, text='发送短信', command=self.send_SMS)
         self.SMS_send_button.pack(anchor='w',padx=15,pady=5)
 
@@ -500,15 +505,25 @@ class MultipleTest():
         set_progress()  
 
     def get_release(self):
-        os.system('adb logcat -b all -c') 
+        os.system('adb logcat -b all -c')
+        platform = os.popen('adb shell getprop ro.soc.manufacturer').read().strip()
+        network_technology = self.network_technology.get()
         #QXDM
-        if self.platform.get() == 1:
-            output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
-            output2 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "Unknown dns: "], universal_newlines=True)
+        if platform == "QTI":
+            if network_technology == 1: # LTE 
+                output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
+                output2 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "Unknown dns: "], universal_newlines=True)
+            if network_technology == 2: # NR
+                output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
         #MTK
-        if self.platform.get() == 2:
-            output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 4|handleConnectionStateReportInd: 0, 255, 5"], universal_newlines=True)
-        time.sleep(5) #延长等待release
+        if platform == "Mediatek":
+            if network_technology == 1: # LTE 
+                # handleConnectionStateReportInd: 1, 7, 4
+                output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 4"], universal_newlines=True)
+            if network_technology == 2: # NR
+                # handleConnectionStateReportInd: 1, 8, 5
+                output2 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 5"], universal_newlines=True)
+        time.sleep(2) # 延长等待release
 
     def wait_release(self):
         get_release_thread = threading.Thread(target=self.get_release)
@@ -575,10 +590,10 @@ class MultipleTest():
     def begin(self):
         self.main_window.focus_set()
         self.counter = 1
-        self.complete = 0
         self.is_run.set(True)
 
         def repeat():
+            self.complete = 0
             if self.is_off_airplane_mode.get() and self.is_run.get():
                 self.disable_airplane_mode()
             if self.is_make_call.get() and self.is_run.get():
@@ -607,6 +622,7 @@ class MultipleTest():
                         if self.is_terminate_call.get():
                             time.sleep(1)
                             self.terminate_call()
+                            time.sleep(3)
 
                         def do_after_release():
                             if self.is_on_airplane_mode.get():
@@ -627,7 +643,7 @@ class MultipleTest():
                                 if self.complete == 2:
                                     do_after_release()
                                 else:
-                                    self.wait_timer_id = self.main_window.after(1000, delay_for_complate_2)
+                                    self.wait_timer_id = self.main_window.after(100, delay_for_complate_2)
                             delay_for_complate_2()
                         else:
                             do_after_release()
