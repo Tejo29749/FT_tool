@@ -62,7 +62,7 @@ class MultipleTest():
             self.terminate_call_checkbutton.config(command=self.skip)
             self.on_airplane_mode_checkbutton.config(command=self.skip)
             self.save_log_checkbutton.config(command=self.skip)
-            self.start_button.config(command=self.begin)
+            self.start_button.config(command=lambda: self.new_thread_to_do(self.begin))
         else:
             self.off_airplane_mode_checkbutton.config(command=self.disable_airplane_mode)
             self.make_call_checkbutton.config(command=self.make_call)
