@@ -32,23 +32,31 @@ RESET_NV = "RESET_NV"
 TIMER = 1000*60*60*5
 
 class MultipleTest():
-    def __init__(self,main_window):
-        self.main_window = main_window
-        # 从顶层窗口向下搜索主窗口，无法搜索子窗口
-        # FindWindow(lpClassName=None, lpWindowName=None)  窗口类名 窗口标题名
-        # self.vysor_handle = win32gui.FindWindow("Chrome_WidgetWin_1", "SD0A2") #E9-SE0C4
-        # self.qxdm_handle = win32gui.FindWindow("Qt5152QWindowIcon", "QXDM_Pro_5.2.520 [LOGGING] - Qualcomm HS-USB Diagnostics 90DB (COM14) - Legacy Diag")
-        # savelog_handle = win32gui.FindWindow("#32770", "Save Item Store (Cancel To Discard)?")
-        # print(win32gui.GetClassName(handle))
+    instances = []
+
+    def __init__(self, master_window:Tk):
+        self.master_window = master_window
+        self.main_window = Toplevel()
         self.counter = 1
         self.complete = 0
         self.auto_timer_id = None
         self.wait_timer_id = None
         self.device_connect_check_timer = None
+        self.device_serial_number = None
+        self.process_status = None
         self.is_run = BooleanVar()
 
         self.qxdm_save_pos = (128/1936,68/1056)
         self.send_SMS_pos = (990/1080, 2160/2340)
+
+        MultipleTest.instances.append(self)
+
+    @classmethod
+    def get_other_instances(self) -> list["MultipleTest"]:
+        return [inst for inst in MultipleTest.instances if inst is not self]
+    
+    def get_other_serial_number(self):
+        return [inst.device_serial_number for inst in self.get_other_instances()]
 
     def skip(self):
         pass
@@ -90,7 +98,7 @@ class MultipleTest():
 
     def set_init_window(self):
         self.main_window.title("FT多次测试工具")
-        self.main_window.geometry('400x600')
+        self.main_window.geometry('400x620')
         self.main_window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # 创建 Notebook 组件
@@ -154,13 +162,25 @@ class MultipleTest():
         config_path = os.path.join(script_dir, 'config.ini')
         self.config.read(config_path)
 
-        #各项功能部件
+        # 各项功能部件
         self.USBdebug_label = Label(self.main_window, text="设备连接异常!\n请确保设备已连接\n并开启USB Debug", font=("Arial", 15), fg="red")
         def device_connect_check():
-            if os.popen('adb shell settings get global adb_enabled').read().strip() == "1":
+            if self.device_serial_number is None:
+                used_devices = self.get_other_serial_number()
+                device_lines = os.popen('adb devices').read().strip().split('\n')[1:]
+                for line in device_lines:
+                    parts = line.strip().split('\t')
+                    if parts[0] not in used_devices:
+                        self.device_serial_number = parts[0]
+                        self.main_window.title(f"FT多次测试工具-{self.device_serial_number}")
+                        break
+
+            if os.popen(f'adb -s {self.device_serial_number} shell settings get global adb_enabled').read().strip() == "1":
                 self.USBdebug_label.pack_forget()
             else:
                 self.USBdebug_label.pack(anchor='w', before=self.notebook, fill='both', expand=True)
+                self.device_serial_number = None
+                self.main_window.title(f"FT多次测试工具")
             self.device_connect_check_timer = self.main_window.after(5000,lambda: self.new_thread_to_do(device_connect_check))
         device_connect_check()
 
@@ -241,25 +261,24 @@ class MultipleTest():
 
         self.startstop_button_frame = Frame(self.fieldtest)
         self.startstop_button_frame.pack(anchor='w', padx=10, pady=10)
-
         self.start_button = Button(self.startstop_button_frame, text='F11> 开始', command=None)
         self.start_button.pack(side=LEFT,padx=15,pady=2)
-
         self.stop_button = Button(self.startstop_button_frame, text='F12> 中止', command=self.cancel_timer)
         self.stop_button.pack(side=LEFT,padx=15,pady=2)
+        self.multiple_windows_button = Button(self.startstop_button_frame, text=' 多开 ', command=self.open_multiple_windows)
+        self.multiple_windows_button.pack(side=LEFT,padx=30,pady=2)
 
         self.progress_label = Label(self.fieldtest, text="进度: ", font=("Arial", 15))
         self.progress_label.pack(anchor='w',padx=20,pady=2)
 
+        # 其他工具
         self.window_on_top_checkbutton = Checkbutton(self.othertools, text="保持此窗口在最前显示", variable = self.is_window_on_top, command=self.set_window_on_top)
         self.window_on_top_checkbutton.pack(anchor='w',padx=20,pady=2)
 
         self.func_button_frame = Frame(self.othertools)
         self.func_button_frame.pack(anchor='w', padx=5, pady=5)
-
         self.open_port_button = Button(self.func_button_frame, text=' 开端口 ', command=self.open_port)
         self.open_port_button.pack(side=LEFT,padx=15,pady=2)
-
         self.off_temp_protect_button = Button(self.func_button_frame, text=' 禁用高温保护 ', command=self.off_temp_protect)
         self.off_temp_protect_button.pack(side=LEFT,padx=15,pady=2)
 
@@ -267,7 +286,7 @@ class MultipleTest():
         self.screen_off_timeout_lable.pack(anchor='w',padx=10,pady=2)
         self.screen_off_timeout_scale = ttk.Scale(self.othertools, orient="horizontal", length=300, from_=1, to=100, command=self.set_screen_off_timeout)
         self.screen_off_timeout_scale.pack(anchor='w',padx=10,pady=2)
-        screen_off_timeout_str = os.popen('adb shell settings get system screen_off_timeout').read().strip()
+        screen_off_timeout_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system screen_off_timeout').read().strip()
         if screen_off_timeout_str.isdigit():
             screen_off_timeout_minute = str(int(screen_off_timeout_str)/60000)
             self.screen_off_timeout_lable.config(text = "屏幕常亮(分钟): " + screen_off_timeout_minute)
@@ -277,12 +296,12 @@ class MultipleTest():
         self.screen_brightness_lable.pack(anchor='w',padx=10,pady=2)
         self.screen_brightness_scale = ttk.Scale(self.othertools, orient="horizontal", length=300, from_=1, to=150, command=self.set_screen_brightness)
         self.screen_brightness_scale.pack(anchor='w',padx=10,pady=2)
-        screen_brightness_str = os.popen('adb shell settings get system screen_brightness').read().strip()
+        screen_brightness_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system screen_brightness').read().strip()
         if screen_brightness_str.isdigit():
             self.screen_brightness_lable.config(text = "屏幕亮度: " + screen_brightness_str)
             self.screen_brightness_scale.set(screen_brightness_str)
         
-        accelerometer_rotation_str = os.popen('adb shell settings get system screen_brightness').read().strip()
+        accelerometer_rotation_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system screen_brightness').read().strip()
         if accelerometer_rotation_str == "1":
             self.is_accelerometer_rotation.set(True)
         else:
@@ -321,14 +340,9 @@ class MultipleTest():
         self.push_file_button = Button(self.push_file_frame, text=' 传输 ', command=self.push_file)
         self.push_file_button.pack(side=LEFT,padx=5,pady=2)
 
+        # LTE: 65633; NSA: 74213; SA: 74087
         self.Band2NV_lable = Label(self.othertools, text="高通专用锁Band: (输入例:3-18-28)")
         self.Band2NV_lable.pack(anchor='w',padx=10,pady=5)
-        # self.lockBandtip1_lable = Label(self.othertools, text="LTE:修改 NV 65633")
-        # self.lockBandtip1_lable.pack(anchor='w',padx=10,pady=5)
-        # self.lockBandtip2_lable = Label(self.othertools, text="NSA:修改 NV 74213")
-        # self.lockBandtip2_lable.pack(anchor='w',padx=10,pady=5)
-        # self.lockBandtip3_lable = Label(self.othertools, text="SA: 修改 NV 74087")
-        # self.lockBandtip3_lable.pack(anchor='w',padx=10,pady=5)
         self.Band2NV_entry = Entry(self.othertools, width = 40)
         self.Band2NV_entry.pack(anchor='w',padx=25,pady=2)
         self.Band2NV_entry.bind("<FocusIn>", self.on_focus_in_Band2NV_entry)
@@ -352,45 +366,36 @@ class MultipleTest():
         self.NSAorSA_button = Button(self.dcmSMS_button_frame, text=' 解包 ', command=self.unbanned_Packages)
         self.NSAorSA_button.pack(side=LEFT,padx=10,pady=2)
 
-        #网络状态
+        # 网络状态
         self.refresh_checkbutton = Checkbutton(self.dashboard, text="每秒自动刷新", variable = self.is_refresh, command=self.refresh)
         self.refresh_checkbutton.pack(anchor='w',padx=10,pady=2)
 
         self.operator_lable = Label(self.dashboard, text="运营商: ")
         self.operator_lable.pack(anchor='w',padx=10,pady=2)
-
         self.VoiceRadioTechnology_lable = Label(self.dashboard, text="CALL网络: ")
         self.VoiceRadioTechnology_lable.pack(anchor='w',padx=10,pady=2)
-
         self.DataRadioTechnology_lable = Label(self.dashboard, text="DATA网络: ")
         self.DataRadioTechnology_lable.pack(anchor='w',padx=10,pady=2)
-
         self.isUsingCarrierAggregation_lable = Label(self.dashboard, text="CA状态: ")
         self.isUsingCarrierAggregation_lable.pack(anchor='w',padx=10,pady=2)
-
         self.Bands_lable = Label(self.dashboard, text="Bands: ")
         self.Bands_lable.pack(anchor='w',padx=10,pady=2)
-
         self.PCI_lable = Label(self.dashboard, text="PCI: ")
         self.PCI_lable.pack(anchor='w',padx=10,pady=2)
-
         self.RSRP_lable = Label(self.dashboard, text="信号强度RSRP: ")
         self.RSRP_lable.pack(anchor='w',padx=10,pady=2)
-
         self.RSRQ_lable = Label(self.dashboard, text="信号质量RSRQ: ")
         self.RSRQ_lable.pack(anchor='w',padx=10,pady=2)
 
-
-        #日志分析
+        # 日志分析
         self.raw_data_label = Label(self.loganalyze, text='输入待分析的QXDM log: ', anchor=W)
         self.raw_data_label.pack(anchor='w',padx=10,pady=5)
-
         self.raw_data_input = Text(self.loganalyze, height=5, wrap=NONE)
         self.raw_data_input.pack(anchor='w',padx=10,pady=5)
-
         self.throughputs_chart_button = Button(self.loganalyze, text=' 吞吐量 ', command=self.throughputs_analyze)
         self.throughputs_chart_button.pack(anchor='w',padx=10,pady=5)
 
+        # 帮助
         self.tips_label = Label(self.help, anchor="w", justify="left", text="提示：\n\n1.未勾选全自动时, 每项功能为通过点击或快捷键单独\n    执行\n\n"
                                 +"2.勾选全自动后选择希望自动执行的功能，点击开始会\n    从上到下依次执行被勾选的各项功能\n\n"
                                 +"3.推荐将等待时长填写为 单次测试时长+冗余等待时长\n\n"
@@ -424,22 +429,22 @@ class MultipleTest():
         win32gui.SendMessage(handle, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, end_tmp)
 
     def enable_airplane_mode(self):
-        if os.popen('adb shell settings get global airplane_mode_on').read().strip() == "0":  #airplane_mode_off
-            os.system('adb root')
-            os.system('adb shell settings put global airplane_mode_on 1')
-            os.system('adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true')
+        if os.popen(f'adb -s {self.device_serial_number} shell settings get global airplane_mode_on').read().strip() == "0":  #airplane_mode_off
+            os.system(f'adb -s {self.device_serial_number} root')
+            os.system(f'adb -s {self.device_serial_number} shell settings put global airplane_mode_on 1')
+            os.system(f'adb -s {self.device_serial_number} shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true')
         self.load_airplane_mode_status()
 
     def disable_airplane_mode(self):
         self.progress_label.config(text="进度: ")
-        if os.popen('adb shell settings get global airplane_mode_on').read().strip() == "1":  #airplane_mode_on
-            os.system('adb root')
-            os.system('adb shell settings put global airplane_mode_on 0')
-            os.system('adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false')
+        if os.popen(f'adb -s {self.device_serial_number} shell settings get global airplane_mode_on').read().strip() == "1":  #airplane_mode_on
+            os.system(f'adb -s {self.device_serial_number} root')
+            os.system(f'adb -s {self.device_serial_number} shell settings put global airplane_mode_on 0')
+            os.system(f'adb -s {self.device_serial_number} shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false')
         self.load_airplane_mode_status()
 
     def load_airplane_mode_status(self):
-        if os.popen('adb shell settings get global airplane_mode_on').read().strip() == "0":  #airplane_mode_off
+        if os.popen(f'adb -s {self.device_serial_number} shell settings get global airplane_mode_on').read().strip() == "0":  #airplane_mode_off
             self.airplanemode_status_label.config(text = "当前飞行模式: 关, 正常联网")
         else:
             self.airplanemode_status_label.config(text = "当前飞行模式: 开, 断网啦")
@@ -458,7 +463,7 @@ class MultipleTest():
 
     def check_state(self, keyword):
             try:
-                output = subprocess.check_output(["adb", "shell", "dumpsys", "telephony.registry"], universal_newlines=True)
+                output = subprocess.check_output(["adb", "-s", self.device_serial_number, "shell", "dumpsys", "telephony.registry"], universal_newlines=True)
                 lines = output.splitlines()
                 
                 for line in lines:
@@ -470,25 +475,25 @@ class MultipleTest():
                 print(f"Error executing adb command: {e}")
 
     def get_mVoiceRegState(self):
-        mServiceState = os.popen('adb shell "dumpsys telephony.registry | grep mServiceState"').read().strip().split("\n")[0]
+        mServiceState = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep mServiceState"').read().strip().split("\n")[0]
         return re.search(r"mVoiceRegState ?= ?(.*?),", mServiceState)[1]
 
     def make_call(self):
         if self.get_call_state() == 0:
-            os.system('adb shell am start -a android.intent.action.CALL tel:' + self.call_number_entry.get())
+            os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.CALL tel:' + self.call_number_entry.get())
     
     def pickup_call(self):
         if self.get_call_state() == 1:
-            os.system('adb shell input keyevent KEYCODE_CALL')
+            os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_CALL')
 
     def fast_test(self):
-        os.system('adb shell am start -a android.intent.action.VIEW -d https://fast.com --ez create_new_tab false')
-        # os.system('adb shell input keyevent KEYCODE_EXPLORER')
-        # os.system('adb shell input keyevent KEYCODE_F5')
+        os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.VIEW -d https://fast.com --ez create_new_tab false')
+        # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_EXPLORER')
+        # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_F5')
         self.complete = 0
         self.wait_progress()
         # TODO 关闭标签页
-        # os.system('adb shell pm clear cn.com.test.mobile') 
+        # os.system(f'adb -s {self.device_serial_number} shell pm clear cn.com.test.mobile') 
 
     def wait_progress(self):
         count = 0
@@ -505,24 +510,24 @@ class MultipleTest():
         set_progress()  
 
     def get_release(self):
-        os.system('adb logcat -b all -c')
-        platform = os.popen('adb shell getprop ro.soc.manufacturer').read().strip()
+        os.system(f'adb -s {self.device_serial_number} logcat -b all -c')
+        platform = os.popen(f'adb -s {self.device_serial_number} shell getprop ro.soc.manufacturer').read().strip()
         network_technology = self.network_technology.get()
         #QXDM
         if platform == "QTI":
             if network_technology == 1: # LTE 
-                output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
-                output2 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "Unknown dns: "], universal_newlines=True)
+                output1 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
+                output2 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "Unknown dns: "], universal_newlines=True)
             if network_technology == 2: # NR
-                output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
+                output1 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
         #MTK
         if platform == "Mediatek":
             if network_technology == 1: # LTE 
                 # handleConnectionStateReportInd: 1, 7, 4
-                output1 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 4"], universal_newlines=True)
+                output1 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 4"], universal_newlines=True)
             if network_technology == 2: # NR
                 # handleConnectionStateReportInd: 1, 8, 5
-                output2 = subprocess.check_output(["adb", "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 5"], universal_newlines=True)
+                output2 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 5"], universal_newlines=True)
         time.sleep(2) # 延长等待release
 
     def wait_release(self):
@@ -543,7 +548,7 @@ class MultipleTest():
 
     def terminate_call(self):
         if self.get_call_state() != 0:
-            os.system('adb shell input keyevent KEYCODE_ENDCALL')
+            os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENDCALL')
 
     def save_log(self):
         log_name = self.log_name_entry.get()
@@ -662,6 +667,13 @@ class MultipleTest():
             self.main_window.after_cancel(self.wait_timer_id)
             self.wait_timer_id = None
 
+    def open_multiple_windows(self):
+        if len(MultipleTest.instances) < 2:
+            multipleTest = MultipleTest(self.master_window)
+            multipleTest.set_init_window()
+        else:
+            messagebox.showinfo("提示", "最多开启两个窗口")
+
     def set_window_on_top(self):
         if self.is_window_on_top.get():
             self.main_window.attributes('-topmost', True)
@@ -669,33 +681,33 @@ class MultipleTest():
             self.main_window.attributes('-topmost', False)
 
     def open_port(self):
-        os.system('adb root')
-        os.system('adb shell setprop sys.usb.config \"diag,adb\"')
+        os.system(f'adb -s {self.device_serial_number} root')
+        os.system(f'adb -s {self.device_serial_number} shell setprop sys.usb.config \"diag,adb\"')
 
     def off_temp_protect(self):
-        os.system('adb root')
-        os.system('adb shell thermal_manager /vendor/etc/.tp/.ht120.mtc')
-        os.system('adb shell stop thermal-engine')
+        os.system(f'adb -s {self.device_serial_number} root')
+        os.system(f'adb -s {self.device_serial_number} shell thermal_manager /vendor/etc/.tp/.ht120.mtc')
+        os.system(f'adb -s {self.device_serial_number} shell stop thermal-engine')
 
     def set_screen_off_timeout(self,value):
-        os.system('adb shell settings put system screen_off_timeout ' + str(int(float(value))*60000))
+        os.system(f'adb -s {self.device_serial_number} shell settings put system screen_off_timeout ' + str(int(float(value))*60000))
         self.screen_off_timeout_lable.config(text = "屏幕常亮(分钟):  " + str(int(float(value))))
 
     def set_screen_brightness(self,value):
-        os.system('adb shell settings put system screen_brightness ' + str(int(float(value)))) 
+        os.system(f'adb -s {self.device_serial_number} shell settings put system screen_brightness ' + str(int(float(value)))) 
         self.screen_brightness_lable.config(text = "屏幕亮度:  " + str(int(float(value))))
 
     def set_accelerometer_rotation(self):
         if self.is_accelerometer_rotation.get():
-            os.system('adb shell settings put system accelerometer_rotation 1')
+            os.system(f'adb -s {self.device_serial_number} shell settings put system accelerometer_rotation 1')
         else:
-            os.system('adb shell settings put system accelerometer_rotation 0')
+            os.system(f'adb -s {self.device_serial_number} shell settings put system accelerometer_rotation 0')
 
     def send_SMS(self):
-        os.system('adb shell am start -a android.intent.action.SENDTO -d sms:'+ self.SMS_number_entry.get() 
+        os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.SENDTO -d sms:'+ self.SMS_number_entry.get() 
                   +' --es sms_body \"' + self.SMS_content_entry.get() + '\" --ez exit_on_sent false')
         time.sleep(1)
-        # os.system('adb shell input tap 990 2160')
+        # os.system(f'adb -s {self.device_serial_number} shell input tap 990 2160')
 
     def random_alphanum(self, n=3):
         return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
@@ -705,7 +717,7 @@ class MultipleTest():
         file_size = self.file_size_entry.get()
         file_name = f"testfile_{file_size}GB_{self.random_alphanum()}"
         os.system(f"fsutil file createnew {file_name} " + str(int(file_size)*10**9))
-        os.system(f"adb push {file_name} /sdcard/")
+        os.system(f"adb -s {self.device_serial_number} push {file_name} /sdcard/")
         if os.path.exists(file_name):  # 检查文件是否存在，避免错误
             os.remove(file_name)
         
@@ -809,20 +821,20 @@ class MultipleTest():
         qxdmService.destroyService()
 
     def reboot_devices(self):
-        os.system('adb reboot')   
+        os.system(f'adb -s {self.device_serial_number} reboot')   
 
     def banned_Packages(self):
-        os.system('adb shell iptables -I OUTPUT -j DROP') 
-        os.system('adb shell ip6tables -I OUTPUT -j DROP') 
+        os.system(f'adb -s {self.device_serial_number} shell iptables -I OUTPUT -j DROP') 
+        os.system(f'adb -s {self.device_serial_number} shell ip6tables -I OUTPUT -j DROP') 
     
     def unbanned_Packages(self):
-        os.system('adb shell iptables -I OUTPUT -j ACCEPT') 
-        os.system('adb shell ip6tables -I OUTPUT -j ACCEPT') 
+        os.system(f'adb -s {self.device_serial_number} shell iptables -I OUTPUT -j ACCEPT') 
+        os.system(f'adb -s {self.device_serial_number} shell ip6tables -I OUTPUT -j ACCEPT') 
 
     #网络状态
     def refresh(self):
         if self.is_refresh.get():
-            mServiceState = os.popen('adb shell "dumpsys telephony.registry | grep mServiceState"').read().strip().split("\n")[0]
+            mServiceState = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep mServiceState"').read().strip().split("\n")[0]
             self.operator_lable.config(text="运营商:  " + re.search(r"mOperatorAlphaLong ?= ?(.*?),", mServiceState)[1])
             self.VoiceRadioTechnology_lable.config(text="CALL网络:  " + re.search(r"getRilVoiceRadioTechnology ?= ?(.*?),", mServiceState)[1])
             DataRadioTechnology = re.search(r"getRilDataRadioTechnology ?= ?(.*?),", mServiceState)[1]
@@ -837,7 +849,7 @@ class MultipleTest():
             else:
                 self.PCI_lable.config(text="PCI:  ")
 
-            mSignalStrength = os.popen('adb shell "dumpsys telephony.registry | grep -i mSignalStrength"').read().strip().split("\n")[0]
+            mSignalStrength = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep -i mSignalStrength"').read().strip().split("\n")[0]
             if LTE in DataRadioTechnology:
                 self.RSRP_lable.config(text="信号强度RSRP:  " + re.search(r"rsrp ?= ?(.*?) ", mSignalStrength)[1] + " dBm")
                 self.RSRQ_lable.config(text="信号质量RSRQ:  " + re.search(r"rsrq ?= ?(.*?) ", mSignalStrength)[1] + " dB")
@@ -973,7 +985,13 @@ class MultipleTest():
             self.main_window.after_cancel(self.device_connect_check_timer)
             self.device_connect_check_timer = None
         self.save_config()
+        self.device_sn = None
+        if self in MultipleTest.instances:
+            MultipleTest.instances.remove(self)
         self.main_window.destroy()
+
+        if not MultipleTest.instances:
+            self.master_window.destroy()
 
     def show_message(self):
         messagebox.showinfo("提示", "测试工具已连续使用很久了yo\n\n注意休息\n\nby ThunderSoft29749")
@@ -1036,6 +1054,7 @@ class MultipleTest():
 
 def start():
     init_window = Tk()
+    init_window.withdraw()
     multipleTest = MultipleTest(init_window)
     multipleTest.set_init_window()
     init_window.mainloop()
