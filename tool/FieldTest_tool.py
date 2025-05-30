@@ -396,15 +396,16 @@ class MultipleTest():
         self.throughputs_chart_button.pack(anchor='w',padx=10,pady=5)
 
         # 帮助
-        self.tips_label = Label(self.help, anchor="w", justify="left", text="提示：\n\n1.未勾选全自动时, 每项功能为通过点击或快捷键单独\n    执行\n\n"
+        self.tips_label = Label(self.help, anchor="w", justify="left", text="1.未勾选全自动时, 每项功能为通过点击或快捷键单独\n    执行\n\n"
                                 +"2.勾选全自动后选择希望自动执行的功能，点击开始会\n    从上到下依次执行被勾选的各项功能\n\n"
                                 +"3.推荐将等待时长填写为 单次测试时长+冗余等待时长\n\n"
                                 +"4.日志命名会将输入框的文字复制到剪切板即可直接粘贴\n    并会将名称末尾的数字自动加1以供下次使用\n\n"
                                 +"5.涉及到保存log操作时, 建议将重复次数设置为 1\n\n"
                                 +"6.锁band时需要提前开端口, 输入 0 即为屏蔽对应网络\n\n"
                                 +"7.默认Band可从policy.xml获取(PCAT/EFSExplorer\n/policyman/carrier_policy.xml)后填写在config.ini\n进行重置\n\n"
-                                +"8.网络状态刷新会占用电脑性能，建议不用时关闭\n\n"
-                                +"9.勾选全局快捷键后，可在任意界面触发快捷键\n\n"
+                                +"8.网络状态刷新会占用电脑性能,建议不用时关闭\n\n"
+                                +"9.勾选全局快捷键后,可在任意界面触发快捷键\n\n"
+                                +"10.多开窗口时全局快捷键是相同的,建议只使用F11和F12\n\n"
                                 +"by ThunderSoft29749")
         self.tips_label.pack(anchor='w',padx=10,pady=10)
 
