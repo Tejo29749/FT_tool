@@ -15,6 +15,7 @@ import subprocess
 from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
+from enum import Enum
 	
 import QutsClient
 import Common.ttypes
@@ -30,6 +31,15 @@ NSA = "NSA"
 SA  = "SA"
 RESET_NV = "RESET_NV"
 TIMER = 1000*60*60*5
+
+class ProcessState(Enum):
+    WAIT_CALL_ENABLE = 0
+    WAIT_CALL_PICKUP = 1
+    WAIT_CALL_INCOME = 2
+    WAIT_DATA_ENABLE = 3
+    FAST_TESTING = 4
+    WAIT_RELEASE = 5
+    RELEASED = 6
 
 class MultipleTest():
     instances = []
@@ -51,7 +61,6 @@ class MultipleTest():
 
         MultipleTest.instances.append(self)
 
-    @classmethod
     def get_other_instances(self) -> list["MultipleTest"]:
         return [inst for inst in MultipleTest.instances if inst is not self]
     
@@ -488,6 +497,7 @@ class MultipleTest():
             os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_CALL')
 
     def fast_test(self):
+        self.process_status = ProcessState.FAST_TESTING
         os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.VIEW -d https://fast.com --ez create_new_tab false')
         # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_EXPLORER')
         # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_F5')
@@ -502,10 +512,10 @@ class MultipleTest():
             nonlocal count
             count += 1
             if count <= int(self.wait_time_entry.get()):
-                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 已等待 " + str(count) + " 秒")
+                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已等待 {str(count)} 秒")
                 self.wait_timer_id = self.main_window.after(1000, set_progress)
             else:
-                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 已完成等待 " + str(self.wait_time_entry.get()) + " 秒！")
+                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已完成等待 {str(self.wait_time_entry.get())} 秒！")
                 self.complete = 1
                 # self.wait_release()
         set_progress()  
@@ -532,6 +542,7 @@ class MultipleTest():
         time.sleep(2) # 延长等待release
 
     def wait_release(self):
+        self.process_status = ProcessState.WAIT_RELEASE
         get_release_thread = threading.Thread(target=self.get_release)
         get_release_thread.start()
         count = 0
@@ -539,11 +550,12 @@ class MultipleTest():
             nonlocal count
             if get_release_thread.is_alive():
                 count += 1
-                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 等待 release " + str(count) + " 秒")
+                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待 release {str(count)} 秒")
                 self.wait_timer_id = self.main_window.after(1000, check_release)
             else:
                 get_release_thread.join()
-                self.progress_label.config(text="进度: 第" + str(self.counter) + "次 已经 release")
+                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已经 release")
+                self.process_status = ProcessState.RELEASED
                 self.complete = 2
         check_release()
 
@@ -593,6 +605,13 @@ class MultipleTest():
         # else:
         #     print(f"自动保存失败")
 
+    def get_pair_status(self):
+        pair_instances = self.get_other_instances()
+        if pair_instances and pair_instances[0].device_serial_number:
+            return pair_instances[0].process_status
+        else:
+            return False
+
     def begin(self):
         self.main_window.focus_set()
         self.counter = 1
@@ -600,24 +619,35 @@ class MultipleTest():
 
         def repeat():
             self.complete = 0
+            self.process_status = None
             if self.is_off_airplane_mode.get() and self.is_run.get():
                 self.disable_airplane_mode()
             if self.is_make_call.get() and self.is_run.get():
                 while self.get_mVoiceRegState() != "0(IN_SERVICE)" and self.is_run.get(): #等待语音服务至可用
+                    self.process_status = ProcessState.WAIT_CALL_ENABLE
                     time.sleep(1)
+                self.process_status = None
                 time.sleep(2)
+                while self.get_pair_status() != ProcessState.WAIT_CALL_INCOME and self.get_pair_status() is not False and self.is_run.get(): #等待双开设备
+                    time.sleep(1)
                 self.make_call()
                 while self.get_mForegroundCallState() != 1 and self.is_run.get(): #拨号后等待至开始通话
+                    self.process_status = ProcessState.WAIT_CALL_PICKUP
                     time.sleep(1)
+                self.process_status = None
                 time.sleep(2)
             if self.is_pickup_call.get():
                 while self.get_call_state() != 1 and self.is_run.get():
+                    self.process_status = ProcessState.WAIT_CALL_INCOME
                     time.sleep(1)
+                self.process_status = None
                 self.pickup_call() 
                 time.sleep(2)
             if self.is_fast_test.get() and self.is_run.get():
                 while self.get_data_state() == 0 and self.is_run.get():
+                    self.process_status = ProcessState.WAIT_DATA_ENABLE
                     time.sleep(1)
+                self.process_status = None
                 self.fast_test()
             else:
                 self.wait_progress()
@@ -777,7 +807,7 @@ class MultipleTest():
         for i in range(len(protList)):
             if (protList[i].protocolType == 0):  # diag type
                 diagProtocolHandle = protList[i].protocolHandle
-                print("Found diag Handle " + str(diagProtocolHandle) + " description " + protList[i].description)
+                print(f"Found diag Handle {str(diagProtocolHandle)} description {protList[i].description}")
 
         if (diagProtocolHandle == -1):
             print("No diag protocol handle found..returning")
