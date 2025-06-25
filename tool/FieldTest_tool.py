@@ -340,13 +340,13 @@ class MultipleTest():
 
         self.push_file_frame = Frame(self.othertools)
         self.push_file_frame.pack(anchor='w', padx=10, pady=2)
-        self.push_file_lable = Label(self.push_file_frame, text="传输测试文件到设备(GB):")
+        self.push_file_lable = Label(self.push_file_frame, text="生成大文件到设备(GB):")
         self.push_file_lable.pack(side=LEFT,padx=0,pady=2)
         testfile_size = StringVar()
         testfile_size.set(self.config.get('Settings', 'testfile_size'))
-        self.file_size_entry = Entry(self.push_file_frame, width = 4, textvariable=testfile_size)
+        self.file_size_entry = Entry(self.push_file_frame, width = 6, textvariable=testfile_size)
         self.file_size_entry.pack(side=LEFT,padx=5,pady=2)
-        self.push_file_button = Button(self.push_file_frame, text=' 传输 ', command=self.push_file)
+        self.push_file_button = Button(self.push_file_frame, text=' 生成 ', command=self.push_file)
         self.push_file_button.pack(side=LEFT,padx=5,pady=2)
 
         # LTE: 65633; NSA: 74213; SA: 74087
@@ -747,10 +747,8 @@ class MultipleTest():
         self.main_window.focus_set()
         file_size = self.file_size_entry.get()
         file_name = f"testfile_{file_size}GB_{self.random_alphanum()}"
-        os.system(f"fsutil file createnew {file_name} " + str(int(file_size)*10**9))
-        os.system(f"adb -s {self.device_serial_number} push {file_name} /sdcard/")
-        if os.path.exists(file_name):  # 检查文件是否存在，避免错误
-            os.remove(file_name)
+        os.system(f"adb -s {self.device_serial_number} shell fallocate -l {int(float(file_size)*10**9)} /sdcard/{file_name}")
+        messagebox.showinfo("提示",f"已生成大文件 {file_name} 到设备")
         
     def on_focus_in_Band2NV_entry(self,event):
         self.Band2NV_lable.config(text="高通专用锁Band: (输入例:3-18-28)")
