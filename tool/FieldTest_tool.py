@@ -14,7 +14,7 @@ import os, re, sys, random, string
 import subprocess
 from datetime import datetime
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
+import matplotlib.dates as mdates
 from enum import Enum
 	
 import QutsClient
@@ -798,7 +798,11 @@ class MultipleTest():
 
         # get only the devices that support Diag, because the current QXDM plugin commands are meant for Diag only.
         deviceList = devManager.getDevicesForService(DiagService.constants.DIAG_SERVICE_NAME)
-        protList = devManager.getProtocolList(deviceList[0])
+        try:
+            protList = devManager.getProtocolList(deviceList[0])
+        except IndexError:
+            messagebox.showerror("注意", "没有识别到设备端口, 请确保已经开端口")
+            return
         # print("First device in device list: {}".format(deviceList[0]))
         diagProtocolHandle = -1
 
@@ -831,8 +835,10 @@ class MultipleTest():
                 if 0 == qxdmService.sendCommand(command):
                     print("Send Command Successful: {}".format(command))
                     self.Band2NV_lable.config(text="高通专用锁Band: 重置成功")
+                    messagebox.showinfo("提示", f"Band重置成功\n请重启设备, 使重置生效!")
                 else:
                     self.Band2NV_lable.config(text="高通专用锁Band: 重置失败,请重启PC及设备后再次尝试")
+                    messagebox.showwarning("提示", f"Band重置失败, 请重启PC及设备后再次尝试\n确保仅有一台设备连接到PC!")
         else:
             if networkTechnology == LTE:
                 command = b'RequestNVItemWrite /nv/item_files/modem/mmode/lte_bandpref ' + self.LTE2NV()
@@ -844,8 +850,10 @@ class MultipleTest():
             if 0 == qxdmService.sendCommand(command):
                 print("Send Command Successful: {}".format(command))
                 self.Band2NV_lable.config(text="高通专用锁Band: 已修改 " + networkTechnology)
+                messagebox.showinfo("提示", f"已锁定 {networkTechnology} 为【{self.Band2NV_entry.get()}】 \n请重启设备, 使锁定生效!")
             else:
                 self.Band2NV_lable.config(text="高通专用锁Band: 修改失败,请重启PC及设备后再次尝试")
+                messagebox.showwarning("提示", f"锁Band失败, 请重启PC及设备后再次尝试\n确保仅有一台设备连接到PC!")
 
         qxdmService.destroyService()
 
@@ -901,10 +909,6 @@ class MultipleTest():
                 parts = line.split()
                 timestamp = re.search(r'(\d{2}:\d{2}:\d{2})\.\d+', parts[1]).group(1)
                 timestamp = datetime.strptime(timestamp, "%H:%M:%S")
-                # timestamp = re.search(r'(\d{2}:\d{2}:\d{2}\.\d{6})', parts[1]).group(1)
-                # timestamp = datetime.strptime(f"{'1980-01-01'} {timestamp}", "%Y-%m-%d %H:%M:%S.%f")
-                # print(int(timestamp.timestamp() * 1_000_000))
-                # direction = 'UL' if 'UL' in line else 'DL'
                 throughput_search = re.search(r'tput\.[Kk]bps:\[.*?PHY:\s*(\d+)', line)
                 if not throughput_search:
                     throughput_search = re.search(r'PHY\|\s*(\d+)\s*Kbps', line)
@@ -924,37 +928,24 @@ class MultipleTest():
         return throughputs['DL_LTE'], throughputs['DL_NR'], throughputs['UL_LTE'], throughputs['UL_NR']
     
     # MBps转换函数
-    def kbps_to_mbps(self, kbps):
-        return kbps / 1000
-
     def kbpslist_to_mbpslist(self, throughputs):
         result = []
         for throughput in throughputs:
-            result.append(self.kbps_to_mbps(throughput[1]))
-        return result
-    
-    def UNIXtime_to_datetime(self, timelist):
-        result = []
-        for time in timelist:
-            result.append(time[0].strftime("%H:%M:%S"))
+            result.append(throughput[1]/1000)
         return result
 
     def throughputs_analyze(self):
-        x_locator = 40
         dl_lte, dl_nr, ul_lte, ul_nr = self.read_throughputs(self.raw_data_input.get(1.0,END))
 
         plt.subplot(2,1,1)
-        if len(dl_lte) > 0:
-            dl_lte_line = plt.plot(self.UNIXtime_to_datetime(dl_lte),self.kbpslist_to_mbpslist(dl_lte),label='DL 4G PHY', color='orange', linestyle='-')
-        if len(dl_nr) > 0:
-            dl_nr_line  = plt.plot(self.UNIXtime_to_datetime(dl_nr),self.kbpslist_to_mbpslist(dl_nr),label='DL 5G PHY', color='red', linestyle='-')
+        if dl_lte:
+            plt.plot([t for t, _ in dl_lte], self.kbpslist_to_mbpslist(dl_lte), label='DL 4G PHY', color='orange', linestyle='-')
+        if dl_nr:
+            plt.plot([t for t, _ in dl_nr], self.kbpslist_to_mbpslist(dl_nr), label='DL 5G PHY', color='red', linestyle='-')
         plt.legend()    # 添加图例
         dl_ax = plt.gca()
-        if len(dl_nr) > len(dl_lte):
-            dl_ax.xaxis.set_major_locator(MultipleLocator(int(len(dl_nr)/x_locator)+1))
-        else:
-            dl_ax.xaxis.set_major_locator(MultipleLocator(int(len(dl_lte)/x_locator)+1))
-
+        dl_ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+        dl_ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=20, maxticks=40))
         plt.xticks(rotation = 45)
         plt.title('DL Throughput')
         plt.xlabel('Time (hh:mm:ss)')
@@ -965,16 +956,14 @@ class MultipleTest():
         plt.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
 
         plt.subplot(2,1,2)
-        if len(ul_lte) > 0:
-            ul_lte_line = plt.plot(self.UNIXtime_to_datetime(ul_lte),self.kbpslist_to_mbpslist(ul_lte),label='UL 4G PHY', color='green', linestyle='-')
-        if len(ul_nr) > 0:
-            ul_nr_line  = plt.plot(self.UNIXtime_to_datetime(ul_nr),self.kbpslist_to_mbpslist(ul_nr),label='UL 5G PHY', color='blue', linestyle='-')
+        if ul_lte:
+            plt.plot([t for t, _ in ul_lte], self.kbpslist_to_mbpslist(ul_lte), label='UL 4G PHY', color='green', linestyle='-')
+        if ul_nr:
+            plt.plot([t for t, _ in ul_nr], self.kbpslist_to_mbpslist(ul_nr), label='UL 5G PHY', color='blue', linestyle='-')
         plt.legend()    # 添加图例
         ul_ax = plt.gca()
-        if len(ul_nr) > len(ul_lte):
-            ul_ax.xaxis.set_major_locator(MultipleLocator(int(len(ul_nr)/x_locator)+1))
-        else:
-            ul_ax.xaxis.set_major_locator(MultipleLocator(int(len(ul_lte)/x_locator)+1))
+        ul_ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+        ul_ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=20, maxticks=40))
         plt.xticks(rotation = 45)
         plt.title('UL Throughput')
         plt.xlabel('Time (hh:mm:ss)')
