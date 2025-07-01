@@ -9,9 +9,9 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 import time, pyperclip, configparser, keyboard#, pyautogui
-import threading
+import threading, subprocess
 import os, re, sys, random, string
-import subprocess
+import asyncio
 from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -238,13 +238,19 @@ class MultipleTest():
 
         self.release_frame = Frame(self.fieldtest)
         self.release_frame.pack(anchor='w', padx=20, pady=2)
-        self.wait_release_checkbutton = Checkbutton(self.release_frame, text="等待release(不稳定)", variable = self.is_wait_release,)
+        self.wait_release_checkbutton = Checkbutton(self.release_frame, text="等待release及时长上限", variable = self.is_wait_release,)
         self.wait_release_checkbutton.pack(side=LEFT,padx=0,pady=2)
         self.network_technology = IntVar(value=1)  # 默认选中选项 1
         self.LTE_radio = Radiobutton(self.release_frame, text="LTE", variable=self.network_technology, value=1)
-        self.LTE_radio.pack(side=LEFT,padx=5,pady=2)
+        self.LTE_radio.pack(side=LEFT,padx=0,pady=2)
         self.NR_radio = Radiobutton(self.release_frame, text="NR", variable=self.network_technology, value=2)
-        self.NR_radio.pack(side=LEFT,padx=5,pady=2)
+        self.NR_radio.pack(side=LEFT,padx=0,pady=2)
+        wait_release_max_time = StringVar()
+        wait_release_max_time.set(self.config.get('Settings', 'wait_release_max_time'))
+        self.wait_release_max_time_entry = Entry(self.release_frame, width=3, textvariable=wait_release_max_time)
+        self.wait_release_max_time_entry.pack(side=LEFT,padx=2,pady=2)
+        self.wait_release_max_time_label = Label(self.release_frame, text="秒")
+        self.wait_release_max_time_label.pack(side=LEFT,padx=0,pady=2)
 
         self.on_airplane_mode_checkbutton = Checkbutton(self.fieldtest, text="F6> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
         self.on_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=2)
@@ -520,41 +526,45 @@ class MultipleTest():
                 # self.wait_release()
         set_progress()  
 
-    def get_release(self):
+    def wait_release(self):
+        self.process_status = ProcessState.WAIT_RELEASE
         os.system(f'adb -s {self.device_serial_number} logcat -b all -c')
         platform = os.popen(f'adb -s {self.device_serial_number} shell getprop ro.soc.manufacturer').read().strip()
         network_technology = self.network_technology.get()
+        output1 = None
         #QXDM
         if platform == "QTI":
             if network_technology == 1: # LTE 
-                output1 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
-                output2 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "Unknown dns: "], universal_newlines=True)
+                output1 = subprocess.Popen(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"])
+                # output2 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "Unknown dns: "], universal_newlines=True)
             if network_technology == 2: # NR
-                output1 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"], universal_newlines=True)
+                output1 = subprocess.Popen(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1"])
         #MTK
         if platform == "Mediatek":
             if network_technology == 1: # LTE 
                 # handleConnectionStateReportInd: 1, 7, 4
-                output1 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 4"], universal_newlines=True)
+                output1 = subprocess.Popen(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 4"])
             if network_technology == 2: # NR
                 # handleConnectionStateReportInd: 1, 8, 5
-                output2 = subprocess.check_output(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 5"], universal_newlines=True)
-        time.sleep(2) # 延长等待release
+                output1 = subprocess.Popen(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 5"])
+        time.sleep(1) # 延长等待release
 
-    def wait_release(self):
-        self.process_status = ProcessState.WAIT_RELEASE
-        get_release_thread = threading.Thread(target=self.get_release)
-        get_release_thread.start()
+        wait_release_max_time = int(self.wait_release_max_time_entry.get())
         count = 0
         def check_release():
             nonlocal count
-            if get_release_thread.is_alive():
+            if output1.poll() is None and count < wait_release_max_time:
                 count += 1
                 self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待 release {str(count)} 秒")
                 self.wait_timer_id = self.main_window.after(1000, check_release)
             else:
-                get_release_thread.join()
-                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已经 release")
+                if count < wait_release_max_time:
+                    time.sleep(1) # 延长等待release
+                    self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已经 release")
+                    time.sleep(1) # 延长等待release
+                else:
+                    output1.terminate()
+                    self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待release时长上限")
                 self.process_status = ProcessState.RELEASED
                 self.complete = 2
         check_release()
@@ -611,6 +621,9 @@ class MultipleTest():
             return pair_instances[0].process_status
         else:
             return False
+        
+    async def sleep(self, second = 1):
+        await asyncio.sleep(second)
 
     def begin(self):
         self.main_window.focus_set()
@@ -627,22 +640,23 @@ class MultipleTest():
                     self.process_status = ProcessState.WAIT_CALL_ENABLE
                     time.sleep(1)
                 self.process_status = None
-                time.sleep(2)
+                time.sleep(1)
                 while self.get_pair_status() != ProcessState.WAIT_CALL_INCOME and self.get_pair_status() is not False and self.is_run.get(): #等待双开设备
-                    time.sleep(1)
+                    asyncio.run(self.sleep())
                 self.make_call()
                 while self.get_mForegroundCallState() != 1 and self.is_run.get(): #拨号后等待至开始通话
                     self.process_status = ProcessState.WAIT_CALL_PICKUP
                     time.sleep(1)
                 self.process_status = None
-                time.sleep(2)
+                time.sleep(1)
             if self.is_pickup_call.get():
+                self.process_status = ProcessState.WAIT_CALL_INCOME
                 while self.get_call_state() != 1 and self.is_run.get():
-                    self.process_status = ProcessState.WAIT_CALL_INCOME
-                    time.sleep(1)
+                    # self.process_status = ProcessState.WAIT_CALL_INCOME
+                    asyncio.run(self.sleep())
                 self.process_status = None
                 self.pickup_call() 
-                time.sleep(2)
+                time.sleep(1)
             if self.is_fast_test.get() and self.is_run.get():
                 while self.get_data_state() == 0 and self.is_run.get():
                     self.process_status = ProcessState.WAIT_DATA_ENABLE
@@ -658,7 +672,7 @@ class MultipleTest():
                         if self.is_terminate_call.get():
                             time.sleep(1)
                             self.terminate_call()
-                            time.sleep(3)
+                            time.sleep(2)
 
                         def do_after_release():
                             if self.is_on_airplane_mode.get():
@@ -700,8 +714,8 @@ class MultipleTest():
 
     def open_multiple_windows(self):
         if len(MultipleTest.instances) < 2:
-            multipleTest = MultipleTest(self.master_window)
-            multipleTest.set_init_window()
+            multipleTest2 = MultipleTest(self.master_window)
+            multipleTest2.set_init_window()
         else:
             messagebox.showinfo("提示", "最多开启两个窗口")
 
@@ -984,6 +998,7 @@ class MultipleTest():
         config['Settings'] = {
             'call_number': self.call_number_entry.get(),
             'wait_time': self.wait_time_entry.get(),
+            'wait_release_max_time': self.wait_release_max_time_entry.get(),
             'log_name': self.log_name_entry.get(),
             'SMS_number': self.SMS_number_entry.get(),
             'SMS_content': self.SMS_content_entry.get(),
