@@ -107,7 +107,7 @@ class MultipleTest():
 
     def set_init_window(self):
         self.main_window.title("FT多次测试工具")
-        self.main_window.geometry('400x620')
+        self.main_window.geometry('400x660')
         self.main_window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # 创建 Notebook 组件
@@ -159,6 +159,7 @@ class MultipleTest():
         self.is_fast_test = BooleanVar()
         self.is_terminate_call = BooleanVar()
         self.is_wait_release = BooleanVar()
+        self.is_wait_release_time = BooleanVar()
         self.is_on_airplane_mode = BooleanVar()
         self.is_save_log = BooleanVar()
         self.is_accelerometer_rotation = BooleanVar()
@@ -230,7 +231,7 @@ class MultipleTest():
         self.wait_time_label.pack(side=LEFT,padx=0,pady=2)
         wait_time = StringVar()
         wait_time.set(self.config.get('Settings', 'wait_time'))
-        self.wait_time_entry = Entry(self.wait_time_frame, width=6, textvariable=wait_time)
+        self.wait_time_entry = Spinbox(self.wait_time_frame, from_=0, to=10000, increment=1, width=6, textvariable=wait_time)
         self.wait_time_entry.pack(side=LEFT,padx=5,pady=2)
 
         self.terminate_call_checkbutton = Checkbutton(self.fieldtest, text="F5> 挂断电话", variable = self.is_terminate_call, command=self.terminate_call)
@@ -238,18 +239,23 @@ class MultipleTest():
 
         self.release_frame = Frame(self.fieldtest)
         self.release_frame.pack(anchor='w', padx=20, pady=2)
-        self.wait_release_checkbutton = Checkbutton(self.release_frame, text="等待release及时长上限", variable = self.is_wait_release,)
+        self.wait_release_checkbutton = Checkbutton(self.release_frame, text="等待release(不稳定)", variable = self.is_wait_release,)
         self.wait_release_checkbutton.pack(side=LEFT,padx=0,pady=2)
         self.network_technology = IntVar(value=1)  # 默认选中选项 1
         self.LTE_radio = Radiobutton(self.release_frame, text="LTE", variable=self.network_technology, value=1)
         self.LTE_radio.pack(side=LEFT,padx=0,pady=2)
         self.NR_radio = Radiobutton(self.release_frame, text="NR", variable=self.network_technology, value=2)
         self.NR_radio.pack(side=LEFT,padx=0,pady=2)
+
+        self.release_time_frame = Frame(self.fieldtest)
+        self.release_time_frame.pack(anchor='w', padx=20, pady=2)
+        self.wait_release_time_checkbutton = Checkbutton(self.release_time_frame, text="等待release时长上限", variable = self.is_wait_release_time,)
+        self.wait_release_time_checkbutton.pack(side=LEFT,padx=0,pady=2)
         wait_release_max_time = StringVar()
         wait_release_max_time.set(self.config.get('Settings', 'wait_release_max_time'))
-        self.wait_release_max_time_entry = Entry(self.release_frame, width=3, textvariable=wait_release_max_time)
+        self.wait_release_max_time_entry = Spinbox(self.release_time_frame, from_=0, to=10000, increment=1, width=4, textvariable=wait_release_max_time)
         self.wait_release_max_time_entry.pack(side=LEFT,padx=2,pady=2)
-        self.wait_release_max_time_label = Label(self.release_frame, text="秒")
+        self.wait_release_max_time_label = Label(self.release_time_frame, text="秒")
         self.wait_release_max_time_label.pack(side=LEFT,padx=0,pady=2)
 
         self.on_airplane_mode_checkbutton = Checkbutton(self.fieldtest, text="F6> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
@@ -271,7 +277,7 @@ class MultipleTest():
         self.repeat_times_label.pack(side=LEFT,padx=0,pady=2)
         repeat_times = StringVar()
         repeat_times.set("1")
-        self.repeat_times_entry = Entry(self.repeat_frame, width=6, textvariable=repeat_times)
+        self.repeat_times_entry = Spinbox(self.repeat_frame, from_=0, to=10000, increment=1, width=6, textvariable=repeat_times)
         self.repeat_times_entry.pack(side=LEFT,padx=5,pady=2)
 
         self.startstop_button_frame = Frame(self.fieldtest)
@@ -299,7 +305,7 @@ class MultipleTest():
 
         self.screen_off_timeout_lable = Label(self.othertools, text="屏幕常亮(分钟): ")
         self.screen_off_timeout_lable.pack(anchor='w',padx=10,pady=2)
-        self.screen_off_timeout_scale = ttk.Scale(self.othertools, orient="horizontal", length=300, from_=1, to=100, command=self.set_screen_off_timeout)
+        self.screen_off_timeout_scale = ttk.Scale(self.othertools, orient="horizontal", length=300, from_=1, to=200, command=self.set_screen_off_timeout)
         self.screen_off_timeout_scale.pack(anchor='w',padx=10,pady=2)
         screen_off_timeout_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system screen_off_timeout').read().strip()
         if screen_off_timeout_str.isdigit():
@@ -553,12 +559,14 @@ class MultipleTest():
         count = 0
         def check_release():
             nonlocal count
-            if output1.poll() is None and count < wait_release_max_time:
+            if (self.is_wait_release.get() and output1.poll() is None and not self.is_wait_release_time.get()) \
+            or (not self.is_wait_release.get() and self.is_wait_release_time.get() and count < wait_release_max_time) \
+            or (self.is_wait_release.get() and output1.poll() is None and self.is_wait_release_time.get() and count < wait_release_max_time):
                 count += 1
                 self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待 release {str(count)} 秒")
                 self.wait_timer_id = self.main_window.after(1000, check_release)
             else:
-                if count < wait_release_max_time:
+                if (self.is_wait_release.get() and not self.is_wait_release_time.get()) or count < wait_release_max_time:
                     time.sleep(1) # 延长等待release
                     self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已经 release")
                     time.sleep(1) # 延长等待release
@@ -687,7 +695,7 @@ class MultipleTest():
                                 time.sleep(2)
                                 repeat()
 
-                        if self.is_wait_release.get():
+                        if self.is_wait_release.get() or self.is_wait_release_time.get():
                             self.wait_release()
                             def delay_for_complate_2():
                                 if self.complete == 2:
