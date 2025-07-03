@@ -663,13 +663,14 @@ class MultipleTest():
                     # self.process_status = ProcessState.WAIT_CALL_INCOME
                     asyncio.run(self.sleep())
                 self.process_status = None
-                self.pickup_call() 
                 time.sleep(1)
+                self.pickup_call()
             if self.is_fast_test.get() and self.is_run.get():
                 while self.get_data_state() == 0 and self.is_run.get():
                     self.process_status = ProcessState.WAIT_DATA_ENABLE
                     time.sleep(1)
                 self.process_status = None
+                time.sleep(1)
                 self.fast_test()
             else:
                 self.wait_progress()
@@ -678,9 +679,8 @@ class MultipleTest():
                 if self.is_run.get():
                     if self.complete == 1:
                         if self.is_terminate_call.get():
-                            time.sleep(1)
                             self.terminate_call()
-                            time.sleep(2)
+                            time.sleep(1)
 
                         def do_after_release():
                             if self.is_on_airplane_mode.get():
@@ -692,7 +692,7 @@ class MultipleTest():
                             
                             if self.counter < int(self.repeat_times_entry.get()):
                                 self.counter += 1
-                                time.sleep(2)
+                                time.sleep(1)
                                 repeat()
 
                         if self.is_wait_release.get() or self.is_wait_release_time.get():
@@ -918,7 +918,14 @@ class MultipleTest():
 
             self.main_window.after(1000, lambda: self.new_thread_to_do(self.refresh))
         else:
-            pass
+            self.operator_lable.config(text="运营商: ")
+            self.VoiceRadioTechnology_lable.config(text="CALL网络: ")
+            self.DataRadioTechnology_lable.config(text="DATA网络: ")
+            self.isUsingCarrierAggregation_lable.config(text="CA状态: ")
+            self.Bands_lable.config(text="Bands: ")
+            self.PCI_lable.config(text="PCI: ")
+            self.RSRP_lable.config(text="信号强度RSRP: ")
+            self.RSRQ_lable.config(text="信号质量RSRQ: ")
 
     
     #日志分析
