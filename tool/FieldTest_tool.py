@@ -4,14 +4,12 @@
 # -----------------------------------------------------------------------------
 import win32gui
 import win32con
-import win32api
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 import time, pyperclip, configparser, keyboard#, pyautogui
 import threading, subprocess
 import os, re, sys, random, string
-import asyncio
 from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -48,16 +46,10 @@ class MultipleTest():
         self.master_window = master_window
         self.main_window = Toplevel()
         self.counter = 1
-        self.complete = 0
-        self.auto_timer_id = None
-        self.wait_timer_id = None
         self.device_connect_check_timer = None
         self.device_serial_number = None
         self.process_status = None
         self.is_run = BooleanVar()
-
-        self.qxdm_save_pos = (128/1936,68/1056)
-        self.send_SMS_pos = (990/1080, 2160/2340)
 
         MultipleTest.instances.append(self)
 
@@ -84,7 +76,7 @@ class MultipleTest():
             self.off_airplane_mode_checkbutton.config(command=self.disable_airplane_mode)
             self.make_call_checkbutton.config(command=self.make_call)
             self.pickup_call_checkbutton.config(command=self.pickup_call)
-            self.fast_test_checkbutton.config(command=self.fast_test)
+            self.fast_test_checkbutton.config(command=lambda:self.new_thread_to_do(self.fast_test))
             self.terminate_call_checkbutton.config(command=self.terminate_call)
             self.on_airplane_mode_checkbutton.config(command=self.enable_airplane_mode)
             self.save_log_checkbutton.config(command=self.save_log)
@@ -193,6 +185,7 @@ class MultipleTest():
                 self.main_window.title(f"FT多次测试工具")
             self.device_connect_check_timer = self.main_window.after(5000,lambda: self.new_thread_to_do(device_connect_check))
         device_connect_check()
+        # print(f"{self.device_serial_number} tkinter thread ID: {threading.get_ident()}")
 
         self.hotkey_button_frame = Frame(self.fieldtest)
         self.hotkey_button_frame.pack(anchor='w', padx=5, pady=2)
@@ -222,7 +215,7 @@ class MultipleTest():
         self.pickup_call_checkbutton = Checkbutton(self.fieldtest, text="F3> 接听电话", variable = self.is_pickup_call, command=self.pickup_call)
         self.pickup_call_checkbutton.pack(anchor='w',padx=20,pady=2)
 
-        self.fast_test_checkbutton = Checkbutton(self.fieldtest, text="F4> 开启fast测速", variable = self.is_fast_test, command=self.fast_test)
+        self.fast_test_checkbutton = Checkbutton(self.fieldtest, text="F4> 开启fast测速", variable = self.is_fast_test, command=lambda:self.new_thread_to_do(self.fast_test))
         self.fast_test_checkbutton.pack(anchor='w',padx=20,pady=2)
 
         self.wait_time_frame = Frame(self.fieldtest)
@@ -231,8 +224,8 @@ class MultipleTest():
         self.wait_time_label.pack(side=LEFT,padx=0,pady=2)
         wait_time = StringVar()
         wait_time.set(self.config.get('Settings', 'wait_time'))
-        self.wait_time_entry = Spinbox(self.wait_time_frame, from_=0, to=10000, increment=1, width=6, textvariable=wait_time)
-        self.wait_time_entry.pack(side=LEFT,padx=5,pady=2)
+        self.wait_time_spinbox = Spinbox(self.wait_time_frame, from_=0, to=10000, increment=1, width=6, textvariable=wait_time)
+        self.wait_time_spinbox.pack(side=LEFT,padx=5,pady=2)
 
         self.terminate_call_checkbutton = Checkbutton(self.fieldtest, text="F5> 挂断电话", variable = self.is_terminate_call, command=self.terminate_call)
         self.terminate_call_checkbutton.pack(anchor='w',padx=20,pady=2)
@@ -253,8 +246,8 @@ class MultipleTest():
         self.wait_release_time_checkbutton.pack(side=LEFT,padx=0,pady=2)
         wait_release_max_time = StringVar()
         wait_release_max_time.set(self.config.get('Settings', 'wait_release_max_time'))
-        self.wait_release_max_time_entry = Spinbox(self.release_time_frame, from_=0, to=10000, increment=1, width=4, textvariable=wait_release_max_time)
-        self.wait_release_max_time_entry.pack(side=LEFT,padx=2,pady=2)
+        self.wait_release_max_time_spinbox = Spinbox(self.release_time_frame, from_=0, to=10000, increment=1, width=4, textvariable=wait_release_max_time)
+        self.wait_release_max_time_spinbox.pack(side=LEFT,padx=2,pady=2)
         self.wait_release_max_time_label = Label(self.release_time_frame, text="秒")
         self.wait_release_max_time_label.pack(side=LEFT,padx=0,pady=2)
 
@@ -277,8 +270,8 @@ class MultipleTest():
         self.repeat_times_label.pack(side=LEFT,padx=0,pady=2)
         repeat_times = StringVar()
         repeat_times.set("1")
-        self.repeat_times_entry = Spinbox(self.repeat_frame, from_=0, to=10000, increment=1, width=6, textvariable=repeat_times)
-        self.repeat_times_entry.pack(side=LEFT,padx=5,pady=2)
+        self.repeat_times_spinbox = Spinbox(self.repeat_frame, from_=0, to=10000, increment=1, width=6, textvariable=repeat_times)
+        self.repeat_times_spinbox.pack(side=LEFT,padx=5,pady=2)
 
         self.startstop_button_frame = Frame(self.fieldtest)
         self.startstop_button_frame.pack(anchor='w', padx=10, pady=10)
@@ -310,7 +303,7 @@ class MultipleTest():
         screen_off_timeout_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system screen_off_timeout').read().strip()
         if screen_off_timeout_str.isdigit():
             screen_off_timeout_minute = str(int(screen_off_timeout_str)/60000)
-            self.screen_off_timeout_lable.config(text = "屏幕常亮(分钟): " + screen_off_timeout_minute)
+            self.screen_off_timeout_lable.config(text = f"屏幕常亮(分钟): {screen_off_timeout_minute}")
             self.screen_off_timeout_scale.set(screen_off_timeout_minute)
 
         self.screen_brightness_lable = Label(self.othertools, text="屏幕亮度: ")
@@ -319,10 +312,10 @@ class MultipleTest():
         self.screen_brightness_scale.pack(anchor='w',padx=10,pady=2)
         screen_brightness_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system screen_brightness').read().strip()
         if screen_brightness_str.isdigit():
-            self.screen_brightness_lable.config(text = "屏幕亮度: " + screen_brightness_str)
+            self.screen_brightness_lable.config(text = f"屏幕亮度: {screen_brightness_str}")
             self.screen_brightness_scale.set(screen_brightness_str)
         
-        accelerometer_rotation_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system screen_brightness').read().strip()
+        accelerometer_rotation_str = os.popen(f'adb -s {self.device_serial_number} shell settings get system accelerometer_rotation').read().strip()
         if accelerometer_rotation_str == "1":
             self.is_accelerometer_rotation.set(True)
         else:
@@ -411,7 +404,7 @@ class MultipleTest():
         # 日志分析
         self.raw_data_label = Label(self.loganalyze, text='输入待分析的QXDM log: ', anchor=W)
         self.raw_data_label.pack(anchor='w',padx=10,pady=5)
-        self.raw_data_input = Text(self.loganalyze, height=5, wrap=NONE)
+        self.raw_data_input = Text(self.loganalyze, height=10, wrap=NONE)
         self.raw_data_input.pack(anchor='w',padx=10,pady=5)
         self.throughputs_chart_button = Button(self.loganalyze, text=' 吞吐量 ', command=self.throughputs_analyze)
         self.throughputs_chart_button.pack(anchor='w',padx=10,pady=5)
@@ -430,26 +423,6 @@ class MultipleTest():
                                 +"by ThunderSoft29749")
         self.tips_label.pack(anchor='w',padx=10,pady=10)
 
-
-    def click_it(self, handle, pos):  # 可后台
-        # 获取窗口位置
-        left, top, right, bottom = win32gui.GetWindowRect(handle)
-        tmp = win32api.MAKELONG(int((right - left) * pos[0]), int((bottom - top) * pos[1]))
-        win32gui.SendMessage(handle, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
-        win32gui.SendMessage(handle, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, tmp)
-        win32gui.SendMessage(handle, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, tmp)
-
-    def move_it(self, handle, start_pos, end_pos):  # 可后台
-        # 获取窗口位置
-        left, top, right, bottom = win32gui.GetWindowRect(handle)
-        start_tmp = win32api.MAKELONG(int((right - left) * start_pos[0]), int((bottom - top) * start_pos[1]))
-        end_tmp   = win32api.MAKELONG(int((right - left) * end_pos[0]), int((bottom - top) * end_pos[1]))
-        win32gui.SendMessage(handle, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
-        win32gui.SendMessage(handle, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, start_tmp)
-        win32gui.SendMessage(handle, win32con.WM_MOUSEMOVE, win32con.MK_LBUTTON, end_tmp)
-        time.sleep(0.1)
-        win32gui.SendMessage(handle, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, end_tmp)
-
     def enable_airplane_mode(self):
         if os.popen(f'adb -s {self.device_serial_number} shell settings get global airplane_mode_on').read().strip() == "0":  #airplane_mode_off
             os.system(f'adb -s {self.device_serial_number} root')
@@ -458,7 +431,6 @@ class MultipleTest():
         self.load_airplane_mode_status()
 
     def disable_airplane_mode(self):
-        self.progress_label.config(text="进度: ")
         if os.popen(f'adb -s {self.device_serial_number} shell settings get global airplane_mode_on').read().strip() == "1":  #airplane_mode_on
             os.system(f'adb -s {self.device_serial_number} root')
             os.system(f'adb -s {self.device_serial_number} shell settings put global airplane_mode_on 0')
@@ -502,7 +474,7 @@ class MultipleTest():
 
     def make_call(self):
         if self.get_call_state() == 0:
-            os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.CALL tel:' + self.call_number_entry.get())
+            os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.CALL tel:{self.call_number_entry.get()}')
     
     def pickup_call(self):
         if self.get_call_state() == 1:
@@ -513,24 +485,21 @@ class MultipleTest():
         os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.VIEW -d https://fast.com --ez create_new_tab false')
         # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_EXPLORER')
         # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_F5')
-        self.complete = 0
         self.wait_progress()
-        # TODO 关闭标签页
         # os.system(f'adb -s {self.device_serial_number} shell pm clear cn.com.test.mobile') 
 
     def wait_progress(self):
+        if not self.is_auto.get():
+            self.is_run.set(True)
         count = 0
-        def set_progress():
-            nonlocal count
+        while count < int(self.wait_time_spinbox.get()) and self.is_run.get():
             count += 1
-            if count <= int(self.wait_time_entry.get()):
-                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已等待 {str(count)} 秒")
-                self.wait_timer_id = self.main_window.after(1000, set_progress)
-            else:
-                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已完成等待 {str(self.wait_time_entry.get())} 秒！")
-                self.complete = 1
-                # self.wait_release()
-        set_progress()  
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已等待 {str(count)} 秒")
+            time.sleep(1)
+        if count >= int(self.wait_time_spinbox.get()):
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已完成等待 {str(self.wait_time_spinbox.get())} 秒！")
+        if not self.is_auto.get():
+            self.is_run.set(False)
 
     def wait_release(self):
         self.process_status = ProcessState.WAIT_RELEASE
@@ -555,27 +524,24 @@ class MultipleTest():
                 output1 = subprocess.Popen(["adb", "-s", self.device_serial_number, "logcat", "-b", "radio", "-m", "1", "-e", "handleConnectionStateReportInd: 0, 255, 5"])
         time.sleep(1) # 延长等待release
 
-        wait_release_max_time = int(self.wait_release_max_time_entry.get())
         count = 0
-        def check_release():
-            nonlocal count
-            if (self.is_wait_release.get() and output1.poll() is None and not self.is_wait_release_time.get()) \
-            or (not self.is_wait_release.get() and self.is_wait_release_time.get() and count < wait_release_max_time) \
-            or (self.is_wait_release.get() and output1.poll() is None and self.is_wait_release_time.get() and count < wait_release_max_time):
-                count += 1
-                self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待 release {str(count)} 秒")
-                self.wait_timer_id = self.main_window.after(1000, check_release)
-            else:
-                if (self.is_wait_release.get() and not self.is_wait_release_time.get()) or count < wait_release_max_time:
-                    time.sleep(1) # 延长等待release
-                    self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已经 release")
-                    time.sleep(1) # 延长等待release
-                else:
-                    output1.terminate()
-                    self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待release时长上限")
-                self.process_status = ProcessState.RELEASED
-                self.complete = 2
-        check_release()
+        while ((self.is_wait_release.get() and output1.poll() is None and not self.is_wait_release_time.get()) \
+        or (not self.is_wait_release.get() and self.is_wait_release_time.get() and count < int(self.wait_release_max_time_spinbox.get())) \
+        or (self.is_wait_release.get() and output1.poll() is None and self.is_wait_release_time.get() and count < int(self.wait_release_max_time_spinbox.get()))) \
+        and self.is_run.get():
+            count += 1
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待 release {str(count)} 秒")
+            time.sleep(1)
+        if ((self.is_wait_release.get() and not self.is_wait_release_time.get()) or count < int(self.wait_release_max_time_spinbox.get())) and self.is_run.get():
+            time.sleep(1) # 延长等待release
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已经 release")
+            time.sleep(1) # 延长等待release
+        elif count >= int(self.wait_release_max_time_spinbox.get()):
+            output1.terminate()
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待release时长上限")
+        else:
+            output1.terminate()
+        self.process_status = ProcessState.RELEASED
 
     def terminate_call(self):
         if self.get_call_state() != 0:
@@ -629,96 +595,80 @@ class MultipleTest():
             return pair_instances[0].process_status
         else:
             return False
-        
-    async def sleep(self, second = 1):
-        await asyncio.sleep(second)
 
     def begin(self):
         self.main_window.focus_set()
+        self.progress_label.config(text=f"进度: ")
         self.counter = 1
         self.is_run.set(True)
 
         def repeat():
-            self.complete = 0
+            # print(f"{self.device_serial_number} func thread ID: {threading.get_ident()}")
             self.process_status = None
             if self.is_off_airplane_mode.get() and self.is_run.get():
                 self.disable_airplane_mode()
+                time.sleep(1)
+
             if self.is_make_call.get() and self.is_run.get():
+                self.process_status = ProcessState.WAIT_CALL_ENABLE
                 while self.get_mVoiceRegState() != "0(IN_SERVICE)" and self.is_run.get(): #等待语音服务至可用
-                    self.process_status = ProcessState.WAIT_CALL_ENABLE
                     time.sleep(1)
                 self.process_status = None
                 time.sleep(1)
+
                 while self.get_pair_status() != ProcessState.WAIT_CALL_INCOME and self.get_pair_status() is not False and self.is_run.get(): #等待双开设备
-                    asyncio.run(self.sleep())
-                self.make_call()
-                while self.get_mForegroundCallState() != 1 and self.is_run.get(): #拨号后等待至开始通话
-                    self.process_status = ProcessState.WAIT_CALL_PICKUP
                     time.sleep(1)
+                self.make_call()
+
+                self.process_status = ProcessState.WAIT_CALL_PICKUP
+                while self.get_mForegroundCallState() != 1 and self.is_run.get(): #拨号后等待至开始通话
+                    time.sleep(0.1)
                 self.process_status = None
-                time.sleep(1)
+
             if self.is_pickup_call.get():
                 self.process_status = ProcessState.WAIT_CALL_INCOME
                 while self.get_call_state() != 1 and self.is_run.get():
-                    # self.process_status = ProcessState.WAIT_CALL_INCOME
-                    asyncio.run(self.sleep())
+                    time.sleep(1)
                 self.process_status = None
                 time.sleep(1)
                 self.pickup_call()
+
             if self.is_fast_test.get() and self.is_run.get():
+                self.process_status = ProcessState.WAIT_DATA_ENABLE
                 while self.get_data_state() == 0 and self.is_run.get():
-                    self.process_status = ProcessState.WAIT_DATA_ENABLE
-                    time.sleep(1)
+                    time.sleep(0.5)
                 self.process_status = None
                 time.sleep(1)
                 self.fast_test()
             else:
                 self.wait_progress()
 
-            def delay_to_do():
-                if self.is_run.get():
-                    if self.complete == 1:
-                        if self.is_terminate_call.get():
-                            self.terminate_call()
-                            time.sleep(1)
+            if self.is_terminate_call.get() and self.is_run.get():
+                self.terminate_call()
+                time.sleep(1)
 
-                        def do_after_release():
-                            if self.is_on_airplane_mode.get():
-                                time.sleep(1)
-                                self.enable_airplane_mode()
-                            if self.is_save_log.get():
-                                time.sleep(1)
-                                self.save_log()
-                            
-                            if self.counter < int(self.repeat_times_entry.get()):
-                                self.counter += 1
-                                time.sleep(1)
-                                repeat()
+            if (self.is_wait_release.get() or self.is_wait_release_time.get()) and self.is_run.get():
+                self.wait_release()
 
-                        if self.is_wait_release.get() or self.is_wait_release_time.get():
-                            self.wait_release()
-                            def delay_for_complate_2():
-                                if self.complete == 2:
-                                    do_after_release()
-                                else:
-                                    self.wait_timer_id = self.main_window.after(100, delay_for_complate_2)
-                            delay_for_complate_2()
-                        else:
-                            do_after_release()
-                    else:
-                        self.auto_timer_id = self.main_window.after(1000, delay_to_do)
-            delay_to_do()
-                
+            if self.is_on_airplane_mode.get() and self.is_run.get():
+                time.sleep(1)
+                self.enable_airplane_mode()
+
+            if self.is_save_log.get() and self.is_run.get():
+                time.sleep(1)
+                self.save_log()
+            
+            if self.counter < int(self.repeat_times_spinbox.get()) and self.is_run.get():
+                self.counter += 1
+                time.sleep(1)
+                repeat()
         repeat()
+        self.is_run.set(False)
+        self.counter = 1
 
     def cancel_timer(self):
         self.is_run.set(False)
-        if self.auto_timer_id is not None:
-            self.main_window.after_cancel(self.auto_timer_id)
-            self.auto_timer_id = None
-        if self.wait_timer_id is not None:
-            self.main_window.after_cancel(self.wait_timer_id)
-            self.wait_timer_id = None
+        self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已中止")
 
     def open_multiple_windows(self):
         if len(MultipleTest.instances) < 2:
@@ -741,14 +691,15 @@ class MultipleTest():
         os.system(f'adb -s {self.device_serial_number} root')
         os.system(f'adb -s {self.device_serial_number} shell thermal_manager /vendor/etc/.tp/.ht120.mtc')
         os.system(f'adb -s {self.device_serial_number} shell stop thermal-engine')
+        messagebox.showinfo("提示", "已禁用高温保护, 重启可恢复")
 
     def set_screen_off_timeout(self,value):
-        os.system(f'adb -s {self.device_serial_number} shell settings put system screen_off_timeout ' + str(int(float(value))*60000))
-        self.screen_off_timeout_lable.config(text = "屏幕常亮(分钟):  " + str(int(float(value))))
+        os.system(f'adb -s {self.device_serial_number} shell settings put system screen_off_timeout {str(int(float(value))*60000)}')
+        self.screen_off_timeout_lable.config(text = f"屏幕常亮(分钟):  {str(int(float(value)))}")
 
     def set_screen_brightness(self,value):
-        os.system(f'adb -s {self.device_serial_number} shell settings put system screen_brightness ' + str(int(float(value)))) 
-        self.screen_brightness_lable.config(text = "屏幕亮度:  " + str(int(float(value))))
+        os.system(f'adb -s {self.device_serial_number} shell settings put system screen_brightness {str(int(float(value)))}') 
+        self.screen_brightness_lable.config(text = f"屏幕亮度:  {str(int(float(value)))}")
 
     def set_accelerometer_rotation(self):
         if self.is_accelerometer_rotation.get():
@@ -757,10 +708,12 @@ class MultipleTest():
             os.system(f'adb -s {self.device_serial_number} shell settings put system accelerometer_rotation 0')
 
     def send_SMS(self):
-        os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.SENDTO -d sms:'+ self.SMS_number_entry.get() 
-                  +' --es sms_body \"' + self.SMS_content_entry.get() + '\" --ez exit_on_sent false')
+        os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.SENDTO -d sms:{self.SMS_number_entry.get()}' 
+                  + f' --es sms_body \"{self.SMS_content_entry.get()}\" --ez exit_on_sent false')
         time.sleep(1)
-        # os.system(f'adb -s {self.device_serial_number} shell input tap 990 2160')
+        wm_size = os.popen(f'adb -s {self.device_serial_number} shell wm size').read().strip()
+        size = re.search(r'(\d+)x(\d+)', wm_size)
+        os.system(f'adb -s {self.device_serial_number} shell input tap {int(int(size.group(1)) * 11/12)} {int(int(size.group(2)) * 12/13)}')
 
     def random_alphanum(self, n=3):
         return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
@@ -843,7 +796,7 @@ class MultipleTest():
         if (0 != qxdmService.startQXDM(diagProtocolHandle)):
             print("Error in start QXDM")  # Starts diag service on this prot handle
         else:
-            # print("Diag Service started on handle " + str(diagProtocolHandle))
+            # print(f"Diag Service started on handle {str(diagProtocolHandle)}")
             pass
 
         if networkTechnology == RESET_NV:
@@ -871,7 +824,7 @@ class MultipleTest():
 
             if 0 == qxdmService.sendCommand(command):
                 print("Send Command Successful: {}".format(command))
-                self.Band2NV_lable.config(text="高通专用锁Band: 已修改 " + networkTechnology)
+                self.Band2NV_lable.config(text=f"高通专用锁Band: 已修改 {networkTechnology}")
                 messagebox.showinfo("提示", f"已锁定 {networkTechnology} 为【{self.Band2NV_entry.get()}】 \n请重启设备, 使锁定生效!")
             else:
                 self.Band2NV_lable.config(text="高通专用锁Band: 修改失败,请重启PC及设备后再次尝试")
@@ -880,41 +833,43 @@ class MultipleTest():
         qxdmService.destroyService()
 
     def reboot_devices(self):
-        os.system(f'adb -s {self.device_serial_number} reboot')   
+        os.system(f'adb -s {self.device_serial_number} reboot')
 
     def banned_Packages(self):
-        os.system(f'adb -s {self.device_serial_number} shell iptables -I OUTPUT -j DROP') 
-        os.system(f'adb -s {self.device_serial_number} shell ip6tables -I OUTPUT -j DROP') 
+        os.system(f'adb -s {self.device_serial_number} shell iptables -I OUTPUT -j DROP')
+        os.system(f'adb -s {self.device_serial_number} shell ip6tables -I OUTPUT -j DROP')
+        messagebox.showinfo("提示", f"已禁包!")
     
     def unbanned_Packages(self):
-        os.system(f'adb -s {self.device_serial_number} shell iptables -I OUTPUT -j ACCEPT') 
-        os.system(f'adb -s {self.device_serial_number} shell ip6tables -I OUTPUT -j ACCEPT') 
+        os.system(f'adb -s {self.device_serial_number} shell iptables -I OUTPUT -j ACCEPT')
+        os.system(f'adb -s {self.device_serial_number} shell ip6tables -I OUTPUT -j ACCEPT')
+        messagebox.showinfo("提示", f"已解包!")
 
     #网络状态
     def refresh(self):
         if self.is_refresh.get():
             mServiceState = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep mServiceState"').read().strip().split("\n")[0]
-            self.operator_lable.config(text="运营商:  " + re.search(r"mOperatorAlphaLong ?= ?(.*?),", mServiceState)[1])
-            self.VoiceRadioTechnology_lable.config(text="CALL网络:  " + re.search(r"getRilVoiceRadioTechnology ?= ?(.*?),", mServiceState)[1])
+            self.operator_lable.config(text=f'运营商:  {re.search(r"mOperatorAlphaLong ?= ?(.*?),", mServiceState)[1]}')
+            self.VoiceRadioTechnology_lable.config(text=f'CALL网络:  {re.search(r"getRilVoiceRadioTechnology ?= ?(.*?),", mServiceState)[1]}')
             DataRadioTechnology = re.search(r"getRilDataRadioTechnology ?= ?(.*?),", mServiceState)[1]
-            self.DataRadioTechnology_lable.config(text="DATA网络:  " + DataRadioTechnology)
-            self.isUsingCarrierAggregation_lable.config(text="CA状态:  " + re.search(r"isUsingCarrierAggregation ?= ?(.*?),", mServiceState)[1])
+            self.DataRadioTechnology_lable.config(text=f"DATA网络:  {DataRadioTechnology}")
+            self.isUsingCarrierAggregation_lable.config(text=f'CA状态:  {re.search(r"isUsingCarrierAggregation ?= ?(.*?),", mServiceState)[1]}')
             if Bands := re.search(r"mBands ?= ?\[(.*?)\] ", mServiceState):
-                self.Bands_lable.config(text="Bands:  " + ("B" if LTE in DataRadioTechnology else "N") + Bands[1])
+                self.Bands_lable.config(text=f'Bands:  {"B" if LTE in DataRadioTechnology else "N"}{Bands[1]}')
             else:
                 self.Bands_lable.config(text="Bands:  ")
             if PCI := re.search(r"mPci ?= ?(.*?) ", mServiceState):
-                self.PCI_lable.config(text="PCI:  " + PCI[1])
+                self.PCI_lable.config(text=f"PCI:  {PCI[1]}")
             else:
                 self.PCI_lable.config(text="PCI:  ")
 
             mSignalStrength = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep -i mSignalStrength"').read().strip().split("\n")[0]
             if LTE in DataRadioTechnology:
-                self.RSRP_lable.config(text="信号强度RSRP:  " + re.search(r"rsrp ?= ?(.*?) ", mSignalStrength)[1] + " dBm")
-                self.RSRQ_lable.config(text="信号质量RSRQ:  " + re.search(r"rsrq ?= ?(.*?) ", mSignalStrength)[1] + " dB")
+                self.RSRP_lable.config(text=f'信号强度RSRP:  {re.search(r"rsrp ?= ?(.*?) ", mSignalStrength)[1]} dBm')
+                self.RSRQ_lable.config(text=f'信号质量RSRQ:  {re.search(r"rsrq ?= ?(.*?) ", mSignalStrength)[1]} dB')
             else:
-                self.RSRP_lable.config(text="信号强度RSRP:  " + re.search(r"ssRsrp ?= ?(.*?) ", mSignalStrength)[1] + " dBm")
-                self.RSRQ_lable.config(text="信号质量RSRQ:  " + re.search(r"ssRsrq ?= ?(.*?) ", mSignalStrength)[1] + " dB")
+                self.RSRP_lable.config(text=f'信号强度RSRP:  {re.search(r"ssRsrp ?= ?(.*?) ", mSignalStrength)[1]} dBm')
+                self.RSRQ_lable.config(text=f'信号质量RSRQ:  {re.search(r"ssRsrq ?= ?(.*?) ", mSignalStrength)[1]} dB')
 
             self.main_window.after(1000, lambda: self.new_thread_to_do(self.refresh))
         else:
@@ -1012,8 +967,8 @@ class MultipleTest():
         config = configparser.ConfigParser()
         config['Settings'] = {
             'call_number': self.call_number_entry.get(),
-            'wait_time': self.wait_time_entry.get(),
-            'wait_release_max_time': self.wait_release_max_time_entry.get(),
+            'wait_time': self.wait_time_spinbox.get(),
+            'wait_release_max_time': self.wait_release_max_time_spinbox.get(),
             'log_name': self.log_name_entry.get(),
             'SMS_number': self.SMS_number_entry.get(),
             'SMS_content': self.SMS_content_entry.get(),
