@@ -99,7 +99,7 @@ class MultipleTest():
 
     def set_init_window(self):
         self.main_window.title("FT多次测试工具")
-        self.main_window.geometry('400x660')
+        self.main_window.geometry('400x680')
         self.main_window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # 创建 Notebook 组件
@@ -152,6 +152,7 @@ class MultipleTest():
         self.is_terminate_call = BooleanVar()
         self.is_wait_release = BooleanVar()
         self.is_wait_release_time = BooleanVar()
+        self.is_return_SA = BooleanVar()
         self.is_on_airplane_mode = BooleanVar()
         self.is_save_log = BooleanVar()
         self.is_accelerometer_rotation = BooleanVar()
@@ -251,6 +252,9 @@ class MultipleTest():
         self.wait_release_max_time_label = Label(self.release_time_frame, text="秒")
         self.wait_release_max_time_label.pack(side=LEFT,padx=0,pady=2)
 
+        self.return_SA_checkbutton = Checkbutton(self.fieldtest, text="等待回到 SA", variable = self.is_return_SA)
+        self.return_SA_checkbutton.pack(anchor='w',padx=20,pady=2)
+
         self.on_airplane_mode_checkbutton = Checkbutton(self.fieldtest, text="F6> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
         self.on_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=2)
 
@@ -274,7 +278,7 @@ class MultipleTest():
         self.repeat_times_spinbox.pack(side=LEFT,padx=5,pady=2)
 
         self.startstop_button_frame = Frame(self.fieldtest)
-        self.startstop_button_frame.pack(anchor='w', padx=10, pady=10)
+        self.startstop_button_frame.pack(anchor='w', padx=10, pady=5)
         self.start_button = Button(self.startstop_button_frame, text='F11> 开始', command=None)
         self.start_button.pack(side=LEFT,padx=15,pady=2)
         self.stop_button = Button(self.startstop_button_frame, text='F12> 中止', command=self.cancel_timer)
@@ -501,6 +505,10 @@ class MultipleTest():
         if not self.is_auto.get():
             self.is_run.set(False)
 
+    def terminate_call(self):
+        if self.get_call_state() != 0:
+            os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENDCALL')
+
     def wait_release(self):
         self.process_status = ProcessState.WAIT_RELEASE
         os.system(f'adb -s {self.device_serial_number} logcat -b all -c')
@@ -543,9 +551,19 @@ class MultipleTest():
             output1.terminate()
         self.process_status = ProcessState.RELEASED
 
-    def terminate_call(self):
-        if self.get_call_state() != 0:
-            os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENDCALL')
+    def wait_return_SA(self):
+        count = 0
+        while self.is_return_SA.get() and self.is_run.get():
+            count += 1
+            mServiceState = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep mServiceState"').read().strip().split("\n")[0]
+            DataRadioTechnology = re.search(r"getRilDataRadioTechnology ?= ?(.*?),", mServiceState)[1]
+            if SA in DataRadioTechnology:
+                break
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待回到SA {str(count)} 秒")
+            time.sleep(1)
+        if self.is_return_SA.get() and self.is_run.get():
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已回到SA")
+            time.sleep(1)
 
     def save_log(self):
         log_name = self.log_name_entry.get()
@@ -625,7 +643,7 @@ class MultipleTest():
                     time.sleep(0.1)
                 self.process_status = None
 
-            if self.is_pickup_call.get():
+            if self.is_pickup_call.get() and self.is_run.get():
                 self.process_status = ProcessState.WAIT_CALL_INCOME
                 while self.get_call_state() != 1 and self.is_run.get():
                     time.sleep(1)
@@ -649,6 +667,9 @@ class MultipleTest():
 
             if (self.is_wait_release.get() or self.is_wait_release_time.get()) and self.is_run.get():
                 self.wait_release()
+
+            if self.is_return_SA.get() and self.is_run.get():
+                self.wait_return_SA()
 
             if self.is_on_airplane_mode.get() and self.is_run.get():
                 time.sleep(1)
