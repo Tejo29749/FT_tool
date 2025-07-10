@@ -644,9 +644,15 @@ class MultipleTest():
                 self.process_status = None
 
             if self.is_pickup_call.get() and self.is_run.get():
+                self.process_status = ProcessState.WAIT_CALL_ENABLE
+                while self.get_mVoiceRegState() != "0(IN_SERVICE)" and self.is_run.get(): #等待语音服务至可用
+                    time.sleep(1)
+                self.process_status = None
+                time.sleep(1)
+
                 self.process_status = ProcessState.WAIT_CALL_INCOME
                 while self.get_call_state() != 1 and self.is_run.get():
-                    time.sleep(1)
+                    time.sleep(0.5)
                 self.process_status = None
                 time.sleep(1)
                 self.pickup_call()
