@@ -25,6 +25,16 @@ import QXDMService.QxdmService
 import QXDMService.constants
 import QXDMService.ttypes
 
+# 防止嵌入版python修改窗口缩放
+import ctypes
+try:
+    ctypes.OleDLL('shcore').SetProcessDpiAwareness(1)  # Windows 8.1+
+except:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()  # Windows 7
+    except:
+        pass
+
 LTE = "LTE"
 NSA = "NSA"
 SA  = "SA"
