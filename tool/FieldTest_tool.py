@@ -311,7 +311,7 @@ class MultipleTest():
         self.multiple_windows_button.pack(side=LEFT,padx=30,pady=2)
 
         self.progress_label = ttk.Label(self.fieldtest, text="进度: ", font=("Arial", 15))
-        self.progress_label.pack(anchor='w',padx=20,pady=2)
+        self.progress_label.pack(anchor='w',padx=20,pady=5)
 
         # 其他工具
         self.window_on_top_checkbutton = ttk.Checkbutton(self.othertools, text="保持此窗口在最前显示", variable = self.is_window_on_top, command=self.set_window_on_top, bootstyle="success-round-toggle")
@@ -690,12 +690,12 @@ class MultipleTest():
 
         def repeat():
             # print(f"{self.device_serial_number} func thread ID: {threading.get_ident()}")
-            self.process_status = None
+            self.process_status = ProcessState.READY_OFF_AIRPLANE_MODE
             if self.is_off_airplane_mode.get() and self.is_run.get():
                 self.safe_configure(self.off_airplane_mode_checkbutton, bootstyle="warning")
-                self.process_status = ProcessState.READY_OFF_AIRPLANE_MODE
                 while self.get_pair_status() != ProcessState.READY_OFF_AIRPLANE_MODE and self.get_pair_status() is not False and self.is_run.get(): #等待双开设备
                     time.sleep(0.5)
+                self.process_status = None
                 self.disable_airplane_mode()
                 time.sleep(1)
                 self.safe_configure(self.off_airplane_mode_checkbutton, bootstyle="success")
@@ -714,6 +714,7 @@ class MultipleTest():
                 self.process_status = ProcessState.WAIT_CALL_PICKUP
                 while self.get_mForegroundCallState() != 1 and self.is_run.get(): #拨号后等待至开始通话
                     time.sleep(0.1)
+                self.process_status = None
                 self.safe_configure(self.make_call_checkbutton, bootstyle="success")
 
             if self.is_pickup_call.get() and self.is_run.get():
@@ -727,6 +728,7 @@ class MultipleTest():
                 while self.get_call_state() != 1 and self.is_run.get():
                     time.sleep(0.5)
                 time.sleep(1)
+                self.process_status = None
                 self.pickup_call()
                 self.safe_configure(self.pickup_call_checkbutton, bootstyle="success")
 
@@ -736,6 +738,7 @@ class MultipleTest():
                 while self.get_data_state() == 0 and self.is_run.get():
                     time.sleep(0.5)
                 time.sleep(1)
+                self.process_status = None
                 self.fast_test()
                 self.safe_configure(self.fast_test_checkbutton, bootstyle="success")
             else:
