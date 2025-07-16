@@ -5,8 +5,8 @@
 import win32gui
 import win32con
 from tkinter import *
-# from tkinter import ttk
 import ttkbootstrap as ttk
+from ttkbootstrap.scrolled import ScrolledText
 from tkinter import messagebox
 import time, pyperclip, configparser, keyboard#, pyautogui
 import threading, subprocess
@@ -40,6 +40,14 @@ NSA = "NSA"
 SA  = "SA"
 RESET_NV = "RESET_NV"
 TIMER = 1000*60*60*5
+ALLOWED_THEMES_MAP = {
+    "默认": "litera",
+    "明亮": "cosmo",
+    "坚实": "sandstone",
+    "质朴": "yeti",
+    "稳重": "superhero",
+    "黑暗": "cyborg",}
+REVERSE_THEME_MAP = {v: k for k, v in ALLOWED_THEMES_MAP.items()}
 
 class ProcessState(Enum):
     WAIT_CALL_ENABLE = 0
@@ -142,7 +150,6 @@ class MultipleTest():
         self.help = ttk.Frame(self.notebook, padding=2)
         self.help.pack(expand=True, fill=BOTH)
         self.notebook.add(self.help, text=' 帮助 ')
-        self.notebook.bind("<<NotebookTabChanged>>", self.clear_selection)
 
         self.main_window.bind('<F1>', self.on_f1)
         self.main_window.bind('<F2>', self.on_f2)
@@ -435,7 +442,7 @@ class MultipleTest():
         # 日志分析
         self.raw_data_label = ttk.Label(self.loganalyze, text='输入待分析的QXDM log: ', anchor=W)
         self.raw_data_label.pack(anchor='w',padx=10,pady=5)
-        self.raw_data_input = ttk.ScrolledText(self.loganalyze, height=10, width=40, wrap=NONE)
+        self.raw_data_input = ScrolledText(self.loganalyze, height=10, width=40, wrap=NONE, autohide=True)
         self.raw_data_input.pack(anchor='w',padx=10,pady=5, fill=X)
         self.throughputs_chart_button = ttk.Button(self.loganalyze, text=' 吞吐量 ', command=self.throughputs_analyze, bootstyle="outline")
         self.throughputs_chart_button.pack(anchor='w',padx=10,pady=5)
@@ -445,19 +452,13 @@ class MultipleTest():
         self.theme_selection_frame.pack(anchor='w', padx=5, pady=5)
         self.theme_selection_lable = ttk.Label(self.theme_selection_frame, text="主题:")
         self.theme_selection_lable.pack(side=LEFT)
-        self.allowed_themes_map = {
-            "默认": "litera",
-            "明亮": "cosmo",
-            "坚实": "sandstone",
-            "质朴": "yeti",
-            "稳重": "superhero",
-            "黑暗": "cyborg",}
-        theme = int(self.config.get('Settings', 'theme'))
-        ttk.Style().theme_use(list(self.allowed_themes_map.values())[theme])
-        self.theme_combobox = ttk.Combobox(self.theme_selection_frame, values=list(self.allowed_themes_map.keys()))
-        self.theme_combobox.pack(side=LEFT, padx=10)
-        self.theme_combobox.current(theme)
-        self.theme_combobox.bind("<<ComboboxSelected>>", self.change_theme)
+        self.theme_radio = StringVar()
+        self.theme_radio.set(next(i for i, v in enumerate(ALLOWED_THEMES_MAP.values()) if v == ttk.Style().theme.name))
+        self.theme_menu = ttk.Menu(self.theme_selection_frame)
+        for i, t in enumerate(ALLOWED_THEMES_MAP.keys()):
+            self.theme_menu.add_radiobutton(label=t, value=i, variable=self.theme_radio, command=lambda theme=t: self.change_theme(theme))
+        self.theme_menubuttom = ttk.Menubutton(master=self.theme_selection_frame,text=REVERSE_THEME_MAP.get(ttk.Style().theme.name),bootstyle="outline",menu=self.theme_menu,)
+        self.theme_menubuttom.pack(side=LEFT, padx=5, pady=5)
 
         self.tips_label = ttk.Label(self.help, anchor="w", justify="left", text="1.未勾选全自动时, 每项功能为通过点击或快捷键单独\n    执行\n\n"
                                 +"2.勾选全自动后选择希望自动执行的功能，点击开始会\n    从上到下依次执行被勾选的各项功能\n\n"
@@ -472,12 +473,12 @@ class MultipleTest():
                                 +"by ThunderSoft29749")
         self.tips_label.pack(anchor='w',padx=10,pady=10)
         
-    def change_theme(self, event):
-        ttk.Style().theme_use(self.allowed_themes_map[self.theme_combobox.get()])
-        self.theme_combobox.selection_clear()
-        pair_instances = self.get_other_instances()
-        if pair_instances:
-            pair_instances[0].theme_combobox.current(list(self.allowed_themes_map.keys()).index(self.theme_combobox.get()))
+    def change_theme(self,theme):
+        ttk.Style().theme_use(ALLOWED_THEMES_MAP[theme])
+        self.theme_menubuttom.configure(text=theme)
+        if pair_instances := self.get_other_instances():
+            pair_instances[0].theme_menubuttom.configure(text=theme)
+            pair_instances[0].theme_radio = self.theme_radio
 
     def clear_selection(self, event:Event):
         event.widget.after_idle(lambda: event.widget.selection_clear())  # 取消选中
@@ -1113,7 +1114,7 @@ class MultipleTest():
             'testfile_size': self.file_size_entry.get(),
             'default_LTE_Band': self.config.get('Settings', 'default_LTE_Band'),
             'default_NSAorSA_Band': self.config.get('Settings', 'default_NSAorSA_Band'),
-            'theme': list(self.allowed_themes_map.keys()).index(self.theme_combobox.get()),
+            'theme': self.theme_radio.get(),
         }
         
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1197,6 +1198,9 @@ class MultipleTest():
 def start():
     init_window = Tk()
     init_window.withdraw()
+    config = configparser.ConfigParser()
+    config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini'))
+    ttk.Style().theme_use(list(ALLOWED_THEMES_MAP.values())[int(config.get('Settings', 'theme'))])
     multipleTest = MultipleTest(init_window)
     multipleTest.set_init_window()
     init_window.mainloop()
