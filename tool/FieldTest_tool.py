@@ -172,6 +172,7 @@ class MultipleTest():
         self.is_terminate_call = BooleanVar()
         self.is_wait_release = BooleanVar()
         self.is_wait_release_time = BooleanVar()
+        self.is_return_NSA = BooleanVar()
         self.is_return_SA = BooleanVar()
         self.is_on_airplane_mode = BooleanVar()
         self.is_save_log = BooleanVar()
@@ -278,6 +279,9 @@ class MultipleTest():
         self.wait_release_max_time_spinbox.bind("<<Decrement>>", self.clear_selection)
         self.wait_release_max_time_label = Label(self.release_time_frame, text="秒")
         self.wait_release_max_time_label.pack(side=LEFT,padx=0,pady=2)
+
+        self.return_NSA_checkbutton = ttk.Checkbutton(self.fieldtest, text="等待回到 NSA", variable = self.is_return_NSA)
+        self.return_NSA_checkbutton.pack(anchor='w',padx=20,pady=5)
 
         self.return_SA_checkbutton = ttk.Checkbutton(self.fieldtest, text="等待回到 SA", variable = self.is_return_SA)
         self.return_SA_checkbutton.pack(anchor='w',padx=20,pady=5)
@@ -607,6 +611,20 @@ class MultipleTest():
             output1.terminate()
         self.process_status = ProcessState.RELEASED
 
+    def wait_return_NSA(self):
+        count = 0
+        while self.is_return_NSA.get() and self.is_run.get():
+            count += 1
+            mTelephonyDisplayInfo = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep mTelephonyDisplayInfo"').read().strip().split("\n")[0]
+            overrideNetwork = re.search(r"overrideNetwork ?= ?(.*?),", mTelephonyDisplayInfo)[1]
+            if NSA in overrideNetwork:
+                break
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 等待回到NSA {str(count)} 秒")
+            time.sleep(1)
+        if self.is_return_NSA.get() and self.is_run.get():
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已回到NSA")
+            time.sleep(1)
+
     def wait_return_SA(self):
         count = 0
         while self.is_return_SA.get() and self.is_run.get():
@@ -764,6 +782,11 @@ class MultipleTest():
                 if self.is_wait_release_time.get():
                     self.safe_configure(self.wait_release_time_checkbutton, bootstyle="success")
 
+            if self.is_return_NSA.get() and self.is_run.get():
+                self.safe_configure(self.return_NSA_checkbutton, bootstyle="warning")
+                self.wait_return_NSA()
+                self.safe_configure(self.return_NSA_checkbutton, bootstyle="success")
+
             if self.is_return_SA.get() and self.is_run.get():
                 self.safe_configure(self.return_SA_checkbutton, bootstyle="warning")
                 self.wait_return_SA()
@@ -801,6 +824,7 @@ class MultipleTest():
         self.safe_configure(self.terminate_call_checkbutton, bootstyle="default")
         self.safe_configure(self.wait_release_checkbutton, bootstyle="default")
         self.safe_configure(self.wait_release_time_checkbutton, bootstyle="default")
+        self.safe_configure(self.return_NSA_checkbutton, bootstyle="default")
         self.safe_configure(self.return_SA_checkbutton, bootstyle="default")
         self.safe_configure(self.on_airplane_mode_checkbutton, bootstyle="default")
         self.safe_configure(self.save_log_checkbutton, bootstyle="default")
