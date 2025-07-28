@@ -424,24 +424,42 @@ class MultipleTest():
 
         # 网络状态
         self.refresh_checkbutton = ttk.Checkbutton(self.dashboard, text="每秒自动刷新", variable = self.is_refresh, command=self.refresh, bootstyle="success-round-toggle")
-        self.refresh_checkbutton.pack(anchor='w',padx=10,pady=5)
+        self.refresh_checkbutton.pack(anchor='w',padx=10,pady=10)
 
         self.operator_lable = ttk.Label(self.dashboard, text="运营商: ")
         self.operator_lable.pack(anchor='w',padx=10,pady=5)
-        self.VoiceRadioTechnology_lable = ttk.Label(self.dashboard, text="CALL网络: ")
+
+        self.pCell_labelframe = ttk.Labelframe(self.dashboard, text="Primary-Cell", bootstyle="primary")
+        self.pCell_labelframe.pack(anchor='w',padx=10,fill=X)
+        self.VoiceRadioTechnology_lable = ttk.Label(self.pCell_labelframe, text="CALL网络: ")
         self.VoiceRadioTechnology_lable.pack(anchor='w',padx=10,pady=5)
-        self.DataRadioTechnology_lable = ttk.Label(self.dashboard, text="DATA网络: ")
+        self.DataRadioTechnology_lable = ttk.Label(self.pCell_labelframe, text="DATA网络: ")
         self.DataRadioTechnology_lable.pack(anchor='w',padx=10,pady=5)
-        self.isUsingCarrierAggregation_lable = ttk.Label(self.dashboard, text="CA状态: ")
+        self.isUsingCarrierAggregation_lable = ttk.Label(self.pCell_labelframe, text="CA状态: ")
         self.isUsingCarrierAggregation_lable.pack(anchor='w',padx=10,pady=5)
-        self.Bands_lable = ttk.Label(self.dashboard, text="Bands: ")
+        self.Bands_lable = ttk.Label(self.pCell_labelframe, text="Bands: ")
         self.Bands_lable.pack(anchor='w',padx=10,pady=5)
-        self.PCI_lable = ttk.Label(self.dashboard, text="PCI: ")
+        self.Freq_lable = ttk.Label(self.pCell_labelframe, text="Freq: ")
+        self.Freq_lable.pack(anchor='w',padx=10,pady=5)
+        self.PCI_lable = ttk.Label(self.pCell_labelframe, text="PCI: ")
         self.PCI_lable.pack(anchor='w',padx=10,pady=5)
-        self.RSRP_lable = ttk.Label(self.dashboard, text="信号强度RSRP: ")
+        self.RSRP_lable = ttk.Label(self.pCell_labelframe, text="信号强度RSRP: ")
         self.RSRP_lable.pack(anchor='w',padx=10,pady=5)
-        self.RSRQ_lable = ttk.Label(self.dashboard, text="信号质量RSRQ: ")
+        self.RSRQ_lable = ttk.Label(self.pCell_labelframe, text="信号质量RSRQ: ")
         self.RSRQ_lable.pack(anchor='w',padx=10,pady=5)
+
+        self.sCell_labelframe = ttk.Labelframe(self.dashboard, text="Secondary-Cell", bootstyle="info")
+        self.sCell_labelframe.pack(anchor='w',padx=10,pady=10,fill=X)
+        self.overrideNetwork_lable = ttk.Label(self.sCell_labelframe, text="网络格式: ")
+        self.overrideNetwork_lable.pack(anchor='w',padx=10,pady=5)
+        self.SPCI_lable = ttk.Label(self.sCell_labelframe, text="PCI: ")
+        self.SPCI_lable.pack(anchor='w',padx=10,pady=5)
+        self.mNrArfcn_lable = ttk.Label(self.sCell_labelframe, text="Freq: ")
+        self.mNrArfcn_lable.pack(anchor='w',padx=10,pady=5)
+        self.SRSRP_lable = ttk.Label(self.sCell_labelframe, text="信号强度RSRP: ")
+        self.SRSRP_lable.pack(anchor='w',padx=10,pady=5)
+        self.SRSRQ_lable = ttk.Label(self.sCell_labelframe, text="信号强度RSRQ: ")
+        self.SRSRQ_lable.pack(anchor='w',padx=10,pady=5)
 
         # 日志分析
         self.raw_data_label = ttk.Label(self.loganalyze, text='输入待分析的QXDM log: ', anchor=W)
@@ -1021,8 +1039,12 @@ class MultipleTest():
                 self.Bands_lable.config(text=f'Bands:  {"B" if LTE in DataRadioTechnology else "N"}{Bands[1]}')
             else:
                 self.Bands_lable.config(text="Bands:  ")
-            if PCI := re.search(r"mPci ?= ?(.*?) ", mServiceState):
-                self.PCI_lable.config(text=f"PCI:  {PCI[1]}")
+            if Freq := re.search(r"mChannelNumber ?= ?(.*?),", mServiceState):
+                self.Freq_lable.config(text=f"Freq:  {Freq[1]}")
+            else:
+                self.Freq_lable.config(text="Freq:  ")
+            if pci := re.search(r"mPci ?= ?(.*?) ", mServiceState):
+                self.PCI_lable.config(text=f"PCI:  {pci[1]}")
             else:
                 self.PCI_lable.config(text="PCI:  ")
 
@@ -1030,9 +1052,39 @@ class MultipleTest():
             if LTE in DataRadioTechnology:
                 self.RSRP_lable.config(text=f'信号强度RSRP:  {re.search(r"rsrp ?= ?(.*?) ", mSignalStrength)[1]} dBm')
                 self.RSRQ_lable.config(text=f'信号质量RSRQ:  {re.search(r"rsrq ?= ?(.*?) ", mSignalStrength)[1]} dB')
-            else:
+            elif SA in DataRadioTechnology:
                 self.RSRP_lable.config(text=f'信号强度RSRP:  {re.search(r"ssRsrp ?= ?(.*?) ", mSignalStrength)[1]} dBm')
                 self.RSRQ_lable.config(text=f'信号质量RSRQ:  {re.search(r"ssRsrq ?= ?(.*?) ", mSignalStrength)[1]} dB')
+            else:
+                self.RSRP_lable.config(text="信号强度RSRP: ")
+                self.RSRQ_lable.config(text="信号质量RSRQ: ")
+
+            mTelephonyDisplayInfo = os.popen(f'adb shell "dumpsys telephony.registry | grep mTelephonyDisplayInfo"').read().strip().split("\n")[0]
+            overrideNetwork = re.search(r"overrideNetwork ?= ?(.*?),", mTelephonyDisplayInfo)[1]
+            self.overrideNetwork_lable.config(text=f'网络格式: {overrideNetwork}')
+            mCellInfo = os.popen(f'adb -s {self.device_serial_number} shell "dumpsys telephony.registry | grep mCellInfo"').read().strip().split("\n")[0]
+            self.spci = None
+            if spci := re.search(r"CellIdentityNr*?mPci ?= ?(.*?) ", mCellInfo):
+                self.spci = spci
+                self.SPCI_lable.config(text=f"PCI:  {self.spci[1]}")
+            elif self.spci:
+                self.SPCI_lable.config(text=f"PCI:  {self.spci[1]}")
+            else:
+                self.SPCI_lable.config(text="PCI:  ")
+            self.mNrArfcn = None
+            if mNrArfcn := re.search(r"CellIdentityNr*?mNrArfcn ?= ?(.*?) ", mCellInfo):
+                self.mNrArfcn = mNrArfcn
+                self.mNrArfcn_lable.config(text=f"Freq:  {self.mNrArfcn[1]}")
+            elif self.mNrArfcn:
+                self.mNrArfcn_lable.config(text=f"Freq:  {self.mNrArfcn[1]}")
+            else:
+                self.mNrArfcn_lable.config(text="Freq:  ")
+            if NSA in overrideNetwork:
+                self.SRSRP_lable.config(text=f'信号强度RSRP:  {re.search(r"ssRsrp ?= ?(.*?) ", mSignalStrength)[1]} dBm')
+                self.SRSRQ_lable.config(text=f'信号质量RSRQ:  {re.search(r"ssRsrq ?= ?(.*?) ", mSignalStrength)[1]} dB')
+            else:
+                self.SRSRP_lable.config(text="信号强度RSRP: ")
+                self.SRSRQ_lable.config(text="信号质量RSRQ: ")
 
             self.main_window.after(1000, lambda: self.new_thread_to_do(self.refresh))
         else:
@@ -1041,9 +1093,17 @@ class MultipleTest():
             self.DataRadioTechnology_lable.config(text="DATA网络: ")
             self.isUsingCarrierAggregation_lable.config(text="CA状态: ")
             self.Bands_lable.config(text="Bands: ")
+            self.Freq_lable.config(text="Freq: ")
             self.PCI_lable.config(text="PCI: ")
             self.RSRP_lable.config(text="信号强度RSRP: ")
             self.RSRQ_lable.config(text="信号质量RSRQ: ")
+            self.overrideNetwork_lable.config(text=f"网络格式: ")
+            self.spci = None
+            self.mNrArfcn = None
+            self.SPCI_lable.config(text="PCI:  ")
+            self.mNrArfcn_lable.config(text="Freq:  ")
+            self.SRSRP_lable.config(text="信号强度RSRP: ")
+            self.SRSRQ_lable.config(text="信号质量RSRQ: ")
 
     
     #日志分析
