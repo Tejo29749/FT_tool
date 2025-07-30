@@ -229,8 +229,8 @@ class MultipleTest():
         self.global_hotkey_checkbutton.pack(side=LEFT,padx=70,pady=2)
 
         self.airplanemode_status_label = ttk.Label(self.fieldtest, text="")
-        self.airplanemode_status_label.pack(anchor='w',padx=20,pady=5)
-        self.load_airplane_mode_status()
+        # self.airplanemode_status_label.pack(anchor='w',padx=20,pady=5)
+        # self.load_airplane_mode_status()
 
         self.off_airplane_mode_checkbutton = ttk.Checkbutton(self.fieldtest, text="F1> 关闭飞行模式", variable = self.is_off_airplane_mode, command=self.disable_airplane_mode)
         self.off_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=5)  
@@ -305,11 +305,11 @@ class MultipleTest():
         self.on_airplane_mode_checkbutton = ttk.Checkbutton(self.fieldtest, text="F8> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
         self.on_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=5)
 
-        self.save_log_checkbutton = ttk.Checkbutton(self.fieldtest, text="F9> 复制日志名到剪切板", variable = self.is_save_log, command=self.save_log)
+        self.save_log_checkbutton = ttk.Checkbutton(self.fieldtest, text="F9> 复制日志名到剪切板 (结尾序号自动+1):", variable = self.is_save_log, command=self.save_log)
         self.save_log_checkbutton.pack(anchor='w',padx=20,pady=5)
 
         self.log_name_label = ttk.Label(self.fieldtest, text="日志命名:")
-        self.log_name_label.pack(anchor='w',padx=20,pady=5)
+        # self.log_name_label.pack(anchor='w',padx=20,pady=5)
         log_name = StringVar()
         log_name.set(self.config.get('Settings', 'log_name'))
         self.log_name_entry = ttk.Entry(self.fieldtest, width = 30)
@@ -526,14 +526,14 @@ class MultipleTest():
             os.system(f'adb -s {self.device_serial_number} root')
             os.system(f'adb -s {self.device_serial_number} shell settings put global airplane_mode_on 1')
             os.system(f'adb -s {self.device_serial_number} shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true')
-        self.load_airplane_mode_status()
+        # self.load_airplane_mode_status()
 
     def disable_airplane_mode(self):
         if os.popen(f'adb -s {self.device_serial_number} shell settings get global airplane_mode_on').read().strip() == "1":  #airplane_mode_on
             os.system(f'adb -s {self.device_serial_number} root')
             os.system(f'adb -s {self.device_serial_number} shell settings put global airplane_mode_on 0')
             os.system(f'adb -s {self.device_serial_number} shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false')
-        self.load_airplane_mode_status()
+        # self.load_airplane_mode_status()
 
     def load_airplane_mode_status(self):
         if os.popen(f'adb -s {self.device_serial_number} shell settings get global airplane_mode_on').read().strip() == "0":  #airplane_mode_off
