@@ -88,6 +88,8 @@ class MultipleTest():
             self.make_call_checkbutton.config(command=self.skip)
             self.pickup_call_checkbutton.config(command=self.skip)
             self.fast_test_checkbutton.config(command=self.skip)
+            self.ftp_download_checkbutton.config(command=self.skip)
+            self.ftp_upload_checkbutton.config(command=self.skip)
             self.terminate_call_checkbutton.config(command=self.skip)
             self.on_airplane_mode_checkbutton.config(command=self.skip)
             self.save_log_checkbutton.config(command=self.skip)
@@ -97,6 +99,8 @@ class MultipleTest():
             self.make_call_checkbutton.config(command=self.make_call)
             self.pickup_call_checkbutton.config(command=self.pickup_call)
             self.fast_test_checkbutton.config(command=lambda:self.new_thread_to_do(self.fast_test))
+            self.ftp_download_checkbutton.config(command=lambda:self.new_thread_to_do(self.ftp_download))
+            self.ftp_upload_checkbutton.config(command=lambda:self.new_thread_to_do(self.ftp_upload))
             self.terminate_call_checkbutton.config(command=self.terminate_call)
             self.on_airplane_mode_checkbutton.config(command=self.enable_airplane_mode)
             self.save_log_checkbutton.config(command=self.save_log)
@@ -111,7 +115,9 @@ class MultipleTest():
             keyboard.add_hotkey("f5", self.on_f5, args=(' '), suppress=True)
             keyboard.add_hotkey("f6", self.on_f6, args=(' '), suppress=True)
             keyboard.add_hotkey("f7", self.on_f7, args=(' '), suppress=True)
+            keyboard.add_hotkey("f8", self.on_f8, args=(' '), suppress=True)
             keyboard.add_hotkey("f9", self.on_f9, args=(' '), suppress=True)
+            keyboard.add_hotkey("f10", self.on_f10, args=(' '), suppress=True)
             keyboard.add_hotkey("f11", self.on_f11, args=(' '), suppress=True)
             keyboard.add_hotkey("f12", self.on_f12, args=(' '), suppress=True)
         else:
@@ -158,7 +164,9 @@ class MultipleTest():
         self.main_window.bind('<F5>', self.on_f5)
         self.main_window.bind('<F6>', self.on_f6)
         self.main_window.bind('<F7>', self.on_f7)
+        self.main_window.bind('<F8>', self.on_f8)
         self.main_window.bind('<F9>', self.on_f9)
+        self.main_window.bind_all('<F10>', self.on_f10)
         self.main_window.bind('<F11>', self.on_f11)
         self.main_window.bind('<F12>', self.on_f12)
 
@@ -169,6 +177,8 @@ class MultipleTest():
         self.is_make_call = BooleanVar()
         self.is_pickup_call = BooleanVar()
         self.is_fast_test = BooleanVar()
+        self.is_ftp_download = BooleanVar()
+        self.is_ftp_upload = BooleanVar()
         self.is_terminate_call = BooleanVar()
         self.is_wait_release = BooleanVar()
         self.is_wait_release_time = BooleanVar()
@@ -212,7 +222,7 @@ class MultipleTest():
         self.hotkey_button_frame = ttk.Frame(self.fieldtest)
         self.hotkey_button_frame.pack(anchor='w', padx=5, pady=2)
 
-        self.auto_checkbutton = ttk.Checkbutton(self.hotkey_button_frame, text="F9> 全自动", variable = self.is_auto, command=self.update_command, bootstyle="primary-round-toggle")
+        self.auto_checkbutton = ttk.Checkbutton(self.hotkey_button_frame, text="F10> 全自动", variable = self.is_auto, command=self.update_command, bootstyle="primary-round-toggle")
         self.auto_checkbutton.pack(side=LEFT, padx=5, pady=2)
 
         self.global_hotkey_checkbutton = ttk.Checkbutton(self.hotkey_button_frame, text="全局快捷键", variable = self.is_global_hotkey, command=self.set_global_hotkey, bootstyle="success-round-toggle")
@@ -238,8 +248,14 @@ class MultipleTest():
         self.pickup_call_checkbutton = ttk.Checkbutton(self.fieldtest, text="F3> 接听电话", variable = self.is_pickup_call, command=self.pickup_call)
         self.pickup_call_checkbutton.pack(anchor='w',padx=20,pady=5)
 
-        self.fast_test_checkbutton = ttk.Checkbutton(self.fieldtest, text="F4> 开启fast测速", variable = self.is_fast_test, command=lambda:self.new_thread_to_do(self.fast_test))
+        self.fast_test_checkbutton = ttk.Checkbutton(self.fieldtest, text="F4> 开启fast.com测速", variable = self.is_fast_test, command=lambda:self.new_thread_to_do(self.fast_test))
         self.fast_test_checkbutton.pack(anchor='w',padx=20,pady=5)
+
+        self.ftp_download_checkbutton = ttk.Checkbutton(self.fieldtest, text="F5> 开启FTP下载", variable = self.is_ftp_download, command=lambda:self.new_thread_to_do(self.ftp_download))
+        self.ftp_download_checkbutton.pack(anchor='w',padx=20,pady=5)
+
+        self.ftp_upload_checkbutton = ttk.Checkbutton(self.fieldtest, text="F6> 开启FTP上传", variable = self.is_ftp_upload, command=lambda:self.new_thread_to_do(self.ftp_upload))
+        self.ftp_upload_checkbutton.pack(anchor='w',padx=20,pady=5)
 
         self.wait_time_frame = ttk.Frame(self.fieldtest)
         self.wait_time_frame.pack(anchor='w', padx=20, pady=2)
@@ -253,7 +269,7 @@ class MultipleTest():
         self.wait_time_spinbox.bind("<<Increment>>", self.clear_selection)
         self.wait_time_spinbox.bind("<<Decrement>>", self.clear_selection)
 
-        self.terminate_call_checkbutton = ttk.Checkbutton(self.fieldtest, text="F5> 挂断电话", variable = self.is_terminate_call, command=self.terminate_call)
+        self.terminate_call_checkbutton = ttk.Checkbutton(self.fieldtest, text="F7> 挂断电话", variable = self.is_terminate_call, command=self.terminate_call)
         self.terminate_call_checkbutton.pack(anchor='w',padx=20,pady=5)
 
         self.release_frame = ttk.Frame(self.fieldtest)
@@ -286,10 +302,10 @@ class MultipleTest():
         self.return_SA_checkbutton = ttk.Checkbutton(self.fieldtest, text="等待回到 SA", variable = self.is_return_SA)
         self.return_SA_checkbutton.pack(anchor='w',padx=20,pady=5)
 
-        self.on_airplane_mode_checkbutton = ttk.Checkbutton(self.fieldtest, text="F6> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
+        self.on_airplane_mode_checkbutton = ttk.Checkbutton(self.fieldtest, text="F8> 开启飞行模式", variable = self.is_on_airplane_mode, command=self.enable_airplane_mode)
         self.on_airplane_mode_checkbutton.pack(anchor='w',padx=20,pady=5)
 
-        self.save_log_checkbutton = ttk.Checkbutton(self.fieldtest, text="F7> 复制日志名到剪切板", variable = self.is_save_log, command=self.save_log)
+        self.save_log_checkbutton = ttk.Checkbutton(self.fieldtest, text="F9> 复制日志名到剪切板", variable = self.is_save_log, command=self.save_log)
         self.save_log_checkbutton.pack(anchor='w',padx=20,pady=5)
 
         self.log_name_label = ttk.Label(self.fieldtest, text="日志命名:")
@@ -322,7 +338,7 @@ class MultipleTest():
         self.multiple_windows_button.pack(side=LEFT,padx=30,pady=2)
 
         self.progress_label = ttk.Label(self.fieldtest, text="进度: ", font=("Arial", 15))
-        self.progress_label.pack(anchor='w',padx=20,pady=5)
+        self.progress_label.pack(anchor='w',padx=10,pady=5)
 
         # 其他工具
         self.window_on_top_checkbutton = ttk.Checkbutton(self.othertools, text="保持此窗口在最前显示", variable = self.is_window_on_top, command=self.set_window_on_top, bootstyle="success-round-toggle")
@@ -567,19 +583,42 @@ class MultipleTest():
         os.system(f'adb -s {self.device_serial_number} shell am start -a android.intent.action.VIEW -d https://fast.com --ez create_new_tab false')
         # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_EXPLORER')
         # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_F5')
-        self.wait_progress()
+        self.wait_progress("fast.com")
         # os.system(f'adb -s {self.device_serial_number} shell pm clear cn.com.test.mobile') 
 
-    def wait_progress(self):
+    def ftp_download(self):
+        os.system(f'adb -s {self.device_serial_number} root')
+        os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/test*"')
+        os.system(f'adb -s {self.device_serial_number} shell am start -n com.termux/.app.TermuxActivity')
+        lftp_command = "\\'set%sxfer:clobber%strue\;mget%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip\;bye\\'"
+        os.system(f'adb -s {self.device_serial_number} shell input text "lftp%s-u%sftp,ftp%sftp.speed.hinet.net%s-e%s{lftp_command}"')
+        os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENTER')
+        self.wait_progress("FTP下载")
+        os.system(f'adb -s {self.device_serial_number} shell am force-stop com.termux')
+
+    def ftp_upload(self):
+        os.system(f'adb -s {self.device_serial_number} root')
+        os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/test*"')
+        is_file_exists = os.popen(f'adb shell "[ -f /data/data/com.termux/files/home/file_up10g ] && echo 1 || echo 0"').read().strip()
+        if is_file_exists == "0":
+            os.system(f"adb -s {self.device_serial_number} shell fallocate -l {int(10*10**9)} /data/data/com.termux/files/home/file_up10g")
+        os.system(f'adb -s {self.device_serial_number} shell am start -n com.termux/.app.TermuxActivity')
+        lftp_command = "\\'set%sxfer:clobber%strue\;cd%suploads\;mput%sfile_up10g%sfile_up10g%sfile_up10g%sfile_up10g%sfile_up10g\;bye\\'"
+        os.system(f'adb -s {self.device_serial_number} shell input text "lftp%s-u%sftp,ftp%sftp.speed.hinet.net%s-e%s{lftp_command}"')
+        os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENTER')
+        self.wait_progress("FTP上传")
+        os.system(f'adb -s {self.device_serial_number} shell am force-stop com.termux')
+
+    def wait_progress(self, label = ""):
         if not self.is_auto.get():
             self.is_run.set(True)
         count = 0
         while count < int(self.wait_time_spinbox.get()) and self.is_run.get():
             count += 1
-            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已等待 {str(count)} 秒")
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 {label} 已等待 {str(count)} 秒")
             time.sleep(1)
         if count >= int(self.wait_time_spinbox.get()):
-            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 已完成等待 {str(self.wait_time_spinbox.get())} 秒！")
+            self.progress_label.config(text=f"进度: 第{str(self.counter)}次 {label} 已完成 {str(self.wait_time_spinbox.get())} 秒！")
         if not self.is_auto.get():
             self.is_run.set(False)
 
@@ -769,15 +808,36 @@ class MultipleTest():
                 self.pickup_call()
                 self.safe_configure(self.pickup_call_checkbutton, bootstyle="success")
 
-            if self.is_fast_test.get() and self.is_run.get():
-                self.safe_configure(self.fast_test_checkbutton, bootstyle="warning")
-                self.process_status = ProcessState.WAIT_DATA_ENABLE
-                while self.get_data_state() == 0 and self.is_run.get():
-                    time.sleep(0.5)
-                time.sleep(1)
-                self.process_status = None
-                self.fast_test()
-                self.safe_configure(self.fast_test_checkbutton, bootstyle="success")
+            if (self.is_fast_test.get() or self.is_ftp_download.get() or self.is_ftp_upload.get()) and self.is_run.get():
+                if self.is_fast_test.get() and self.is_run.get():
+                    self.safe_configure(self.fast_test_checkbutton, bootstyle="warning")
+                    self.process_status = ProcessState.WAIT_DATA_ENABLE
+                    while self.get_data_state() == 0 and self.is_run.get():
+                        time.sleep(0.5)
+                    time.sleep(1)
+                    self.process_status = None
+                    self.fast_test()
+                    self.safe_configure(self.fast_test_checkbutton, bootstyle="success")
+                
+                if self.is_ftp_download.get() and self.is_run.get():
+                    self.safe_configure(self.ftp_download_checkbutton, bootstyle="warning")
+                    self.process_status = ProcessState.WAIT_DATA_ENABLE
+                    while self.get_data_state() == 0 and self.is_run.get():
+                        time.sleep(0.5)
+                    time.sleep(1)
+                    self.process_status = None
+                    self.ftp_download()
+                    self.safe_configure(self.ftp_download_checkbutton, bootstyle="success")
+                
+                if self.is_ftp_upload.get() and self.is_run.get():
+                    self.safe_configure(self.ftp_upload_checkbutton, bootstyle="warning")
+                    self.process_status = ProcessState.WAIT_DATA_ENABLE
+                    while self.get_data_state() == 0 and self.is_run.get():
+                        time.sleep(0.5)
+                    time.sleep(1)
+                    self.process_status = None
+                    self.ftp_upload()
+                    self.safe_configure(self.ftp_upload_checkbutton, bootstyle="success")
             else:
                 self.safe_configure(self.wait_time_spinbox, bootstyle="warning")
                 self.wait_progress()
@@ -838,6 +898,8 @@ class MultipleTest():
         self.safe_configure(self.make_call_checkbutton, bootstyle="default")
         self.safe_configure(self.pickup_call_checkbutton, bootstyle="default")
         self.safe_configure(self.fast_test_checkbutton, bootstyle="default")
+        self.safe_configure(self.ftp_download_checkbutton, bootstyle="default")
+        self.safe_configure(self.ftp_upload_checkbutton, bootstyle="default")
         self.safe_configure(self.wait_time_spinbox, bootstyle="default")
         self.safe_configure(self.terminate_call_checkbutton, bootstyle="default")
         self.safe_configure(self.wait_release_checkbutton, bootstyle="default")
@@ -1228,52 +1290,54 @@ class MultipleTest():
         self.is_off_airplane_mode.set(not self.is_off_airplane_mode.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.disable_airplane_mode)
-            # self.disable_airplane_mode()
         
     def on_f2(self, event): 
         self.is_make_call.set(not self.is_make_call.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.make_call)
-            # self.make_call()
 
     def on_f3(self, event): 
         self.is_pickup_call.set(not self.is_pickup_call.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.pickup_call)
-            # self.pickup_call()
 
     def on_f4(self, event): 
         self.is_fast_test.set(not self.is_fast_test.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.fast_test)
-            # self.fast_test()
 
     def on_f5(self, event): 
+        self.is_ftp_download.set(not self.is_ftp_download.get())
+        if not self.is_auto.get():
+            self.new_thread_to_do(self.ftp_download)
+
+    def on_f6(self, event): 
+        self.is_ftp_upload.set(not self.is_ftp_upload.get())
+        if not self.is_auto.get():
+            self.new_thread_to_do(self.ftp_upload)
+
+    def on_f7(self, event): 
         self.is_terminate_call.set(not self.is_terminate_call.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.terminate_call)
-            # self.terminate_call()
 
-    def on_f6(self, event): 
+    def on_f8(self, event): 
         self.is_on_airplane_mode.set(not self.is_on_airplane_mode.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.enable_airplane_mode)
-            # self.enable_airplane_mode()
 
-    def on_f7(self, event): 
+    def on_f9(self, event): 
         self.is_save_log.set(not self.is_save_log.get())
         if not self.is_auto.get():
             self.new_thread_to_do(self.save_log)
-            # self.save_log()
 
-    def on_f9(self, event): 
+    def on_f10(self, event): 
         self.is_auto.set(not self.is_auto.get())
         self.update_command()
 
     def on_f11(self, event): 
         if self.is_auto.get():
             self.new_thread_to_do(self.begin)
-            # self.begin()
 
     def on_f12(self, event): 
         self.cancel_timer()
