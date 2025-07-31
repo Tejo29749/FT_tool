@@ -337,8 +337,8 @@ class MultipleTest():
         self.multiple_windows_button = ttk.Button(self.startstop_button_frame, text=' 多开 ', command=self.open_multiple_windows, bootstyle="info-outline")
         self.multiple_windows_button.pack(side=LEFT,padx=30,pady=2)
 
-        self.progress_label = ttk.Label(self.fieldtest, text="进度: ", font=("Arial", 15))
-        self.progress_label.pack(anchor='w',padx=10,pady=5)
+        self.progress_label = ttk.Label(self.main_window, text="进度: ", font=("Arial", 15), padding=(20,0,20,10))
+        self.progress_label.pack(side="bottom", fill="x", anchor='w')
 
         # 其他工具
         self.window_on_top_checkbutton = ttk.Checkbutton(self.othertools, text="保持此窗口在最前显示", variable = self.is_window_on_top, command=self.set_window_on_top, bootstyle="success-round-toggle")
@@ -498,7 +498,8 @@ class MultipleTest():
         self.theme_menubuttom = ttk.Menubutton(master=self.theme_selection_frame,text=REVERSE_THEME_MAP.get(ttk.Style().theme.name),bootstyle="outline",menu=self.theme_menu,)
         self.theme_menubuttom.pack(side=LEFT, padx=5, pady=5)
 
-        self.tips_label = ttk.Label(self.help, anchor="w", justify="left", text="1.未勾选全自动时, 每项功能为通过点击或快捷键单独\n    执行\n\n"
+        self.tips_label = ttk.Label(self.help, anchor="w", justify="left", padding=(10,0,10,5),
+                                text="1.未勾选全自动时, 每项功能为通过点击或快捷键单独\n    执行\n\n"
                                 +"2.勾选全自动后选择希望自动执行的功能，点击开始会\n    从上到下依次执行被勾选的各项功能\n\n"
                                 +"3.推荐将等待时长填写为 单次测试时长+冗余等待时长\n\n"
                                 +"4.日志命名会将输入框的文字复制到剪切板即可直接粘贴\n    并会将名称末尾的数字自动加1以供下次使用\n\n"
@@ -509,7 +510,7 @@ class MultipleTest():
                                 +"9.勾选全局快捷键后,可在任意界面触发快捷键\n\n"
                                 +"10.多开窗口时全局快捷键是相同的,建议只使用F11和F12\n\n"
                                 +"by ThunderSoft29749")
-        self.tips_label.pack(anchor='w',padx=10,pady=10)
+        self.tips_label.pack(anchor='w')
         
     def change_theme(self,theme):
         ttk.Style().theme_use(ALLOWED_THEMES_MAP[theme])
