@@ -589,24 +589,34 @@ class MultipleTest():
 
     def ftp_download(self):
         os.system(f'adb -s {self.device_serial_number} root')
+
+        ftp_download_command = 'lftp -u ftp,ftp ftp.speed.hinet.net -e \""set xfer:clobber true;mget test_9216m.zip test_9216m.zip test_9216m.zip test_9216m.zip test_9216m.zip;bye"\"'
+        push_script_command = f"echo '{ftp_download_command}' > /data/data/com.termux/files/home/.bashrc"
+        os.system(f'adb -s {self.device_serial_number} shell "{push_script_command}"')
+
         os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/test*"')
         os.system(f'adb -s {self.device_serial_number} shell am start -n com.termux/.app.TermuxActivity')
-        lftp_command = "\\'set%sxfer:clobber%strue\;mget%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip\;bye\\'"
-        os.system(f'adb -s {self.device_serial_number} shell input text "lftp%s-u%sftp,ftp%sftp.speed.hinet.net%s-e%s{lftp_command}"')
-        os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENTER')
+        # lftp_command = "\\'set%sxfer:clobber%strue\;mget%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip%stest_9216m.zip\;bye\\'"
+        # os.system(f'adb -s {self.device_serial_number} shell input text "lftp%s-u%sftp,ftp%sftp.speed.hinet.net%s-e%s{lftp_command}"')
+        # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENTER')
         self.wait_progress("FTP下载")
         os.system(f'adb -s {self.device_serial_number} shell am force-stop com.termux')
 
     def ftp_upload(self):
         os.system(f'adb -s {self.device_serial_number} root')
+
+        ftp_upload_command = 'lftp -u ftp,ftp ftp.speed.hinet.net -e \""set xfer:clobber true;mput file_up10g file_up10g file_up10g file_up10g file_up10g;bye"\"'
+        push_script_command = f"echo '{ftp_upload_command}' > /data/data/com.termux/files/home/.bashrc"
+        os.system(f'adb -s {self.device_serial_number} shell "{push_script_command}"')
+
         os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/test*"')
         is_file_exists = os.popen(f'adb shell "[ -f /data/data/com.termux/files/home/file_up10g ] && echo 1 || echo 0"').read().strip()
         if is_file_exists == "0":
             os.system(f"adb -s {self.device_serial_number} shell fallocate -l {int(10*10**9)} /data/data/com.termux/files/home/file_up10g")
         os.system(f'adb -s {self.device_serial_number} shell am start -n com.termux/.app.TermuxActivity')
-        lftp_command = "\\'set%sxfer:clobber%strue\;cd%suploads\;mput%sfile_up10g%sfile_up10g%sfile_up10g%sfile_up10g%sfile_up10g\;bye\\'"
-        os.system(f'adb -s {self.device_serial_number} shell input text "lftp%s-u%sftp,ftp%sftp.speed.hinet.net%s-e%s{lftp_command}"')
-        os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENTER')
+        # lftp_command = "\\'set%sxfer:clobber%strue\;cd%suploads\;mput%sfile_up10g%sfile_up10g%sfile_up10g%sfile_up10g%sfile_up10g\;bye\\'"
+        # os.system(f'adb -s {self.device_serial_number} shell input text "lftp%s-u%sftp,ftp%sftp.speed.hinet.net%s-e%s{lftp_command}"')
+        # os.system(f'adb -s {self.device_serial_number} shell input keyevent KEYCODE_ENTER')
         self.wait_progress("FTP上传")
         os.system(f'adb -s {self.device_serial_number} shell am force-stop com.termux')
 
