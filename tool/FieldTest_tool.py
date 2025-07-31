@@ -341,15 +341,21 @@ class MultipleTest():
         self.progress_label.pack(side="bottom", fill="x", anchor='w')
 
         # 其他工具
-        self.window_on_top_checkbutton = ttk.Checkbutton(self.othertools, text="保持此窗口在最前显示", variable = self.is_window_on_top, command=self.set_window_on_top, bootstyle="success-round-toggle")
-        self.window_on_top_checkbutton.pack(anchor='w',padx=20,pady=5)
+        self.func_switch_frame = ttk.Frame(self.othertools)
+        self.func_switch_frame.pack(anchor='w', padx=5, pady=5)
+        self.window_on_top_checkbutton = ttk.Checkbutton(self.func_switch_frame, text="保持此窗口在最前显示", variable = self.is_window_on_top, command=self.set_window_on_top, bootstyle="success-round-toggle")
+        self.window_on_top_checkbutton.pack(side=LEFT,padx=10,pady=2)
 
         self.func_button_frame = ttk.Frame(self.othertools)
         self.func_button_frame.pack(anchor='w', padx=5, pady=5)
         self.open_port_button = ttk.Button(self.func_button_frame, text=' 开端口 ', command=self.open_port, bootstyle="outline")
         self.open_port_button.pack(side=LEFT,padx=15,pady=2)
         self.off_temp_protect_button = ttk.Button(self.func_button_frame, text=' 禁用高温保护 ', command=self.off_temp_protect, bootstyle="outline")
-        self.off_temp_protect_button.pack(side=LEFT,padx=15,pady=2)
+        self.off_temp_protect_button.pack(side=LEFT,padx=5,pady=2)
+        self.NSAorSA_button = ttk.Button(self.func_button_frame, text=' 禁包 ', command=self.banned_Packages, bootstyle="outline")
+        self.NSAorSA_button.pack(side=LEFT,padx=5,pady=2)
+        self.NSAorSA_button = ttk.Button(self.func_button_frame, text=' 解包 ', command=self.unbanned_Packages, bootstyle="outline")
+        self.NSAorSA_button.pack(side=LEFT,padx=5,pady=2)
 
         self.screen_off_timeout_lable = ttk.Label(self.othertools, text="屏幕常亮(分钟): ")
         self.screen_off_timeout_lable.pack(anchor='w',padx=10,pady=2)
@@ -375,8 +381,8 @@ class MultipleTest():
             self.is_accelerometer_rotation.set(True)
         else:
             self.is_accelerometer_rotation.set(False)
-        self.accelerometer_rotation_checkbutton = ttk.Checkbutton(self.othertools, text="屏幕自动旋转", variable = self.is_accelerometer_rotation, command=self.set_accelerometer_rotation, bootstyle="success-round-toggle")
-        self.accelerometer_rotation_checkbutton.pack(anchor='w',padx=20,pady=5)
+        self.accelerometer_rotation_checkbutton = ttk.Checkbutton(self.func_switch_frame, text="屏幕自动旋转", variable = self.is_accelerometer_rotation, command=self.set_accelerometer_rotation, bootstyle="success-round-toggle")
+        self.accelerometer_rotation_checkbutton.pack(side=LEFT,padx=10,pady=2)
 
         self.SMS_number_frame = ttk.Frame(self.othertools)
         self.SMS_number_frame.pack(anchor='w', padx=10, pady=2)
@@ -397,8 +403,8 @@ class MultipleTest():
         self.SMS_content_entry = ttk.Entry(self.SMS_content_frame, width=20)
         self.SMS_content_entry.pack(side=LEFT,padx=5,pady=0)
         self.SMS_content_entry.insert(END, SMS_content.get())
-        self.SMS_send_button = ttk.Button(self.othertools, text='发送短信', command=self.send_SMS, bootstyle="outline")
-        self.SMS_send_button.pack(anchor='w',padx=15,pady=5)
+        self.SMS_send_button = ttk.Button(self.SMS_content_frame, text='发送短信', command=self.send_SMS, bootstyle="outline")
+        self.SMS_send_button.pack(side=LEFT,padx=5,pady=0)
 
         self.push_file_frame = ttk.Frame(self.othertools)
         self.push_file_frame.pack(anchor='w', padx=10, pady=2)
@@ -431,12 +437,58 @@ class MultipleTest():
         self.NSAorSA_button = ttk.Button(self.Band2NV_button_frame, text='重置NV', command=lambda: self.set_NV(RESET_NV), bootstyle="outline")
         self.NSAorSA_button.pack(side=LEFT,padx=5,pady=2)
 
-        self.dcmSMS_button_frame = ttk.Frame(self.othertools)
-        self.dcmSMS_button_frame.pack(anchor='w', padx=5, pady=5)
-        self.NSAorSA_button = ttk.Button(self.dcmSMS_button_frame, text=' 禁包 ', command=self.banned_Packages, bootstyle="outline")
-        self.NSAorSA_button.pack(side=LEFT,padx=5,pady=2)
-        self.NSAorSA_button = ttk.Button(self.dcmSMS_button_frame, text=' 解包 ', command=self.unbanned_Packages, bootstyle="outline")
-        self.NSAorSA_button.pack(side=LEFT,padx=5,pady=2)
+        self.ftp_host_frame = ttk.Frame(self.othertools)
+        self.ftp_host_frame.pack(anchor='w', padx=10, pady=2)
+        self.ftp_host_lable = ttk.Label(self.ftp_host_frame, text="FTP地址: ")
+        self.ftp_host_lable.pack(side=LEFT,padx=0,pady=0)
+        ftp_host = StringVar()
+        ftp_host.set(self.config.get('Settings', 'ftp_host'))
+        self.ftp_host_entry = ttk.Entry(self.ftp_host_frame, width=20)
+        self.ftp_host_entry.pack(side=LEFT,padx=5,pady=0)
+        self.ftp_host_entry.insert(END, ftp_host.get())
+
+        self.default_ftp_button = ttk.Button(self.ftp_host_frame, text='默认FTP', command=self.set_default_ftp, bootstyle="outline")
+        self.default_ftp_button.pack(side=LEFT,padx=5,pady=2)
+
+        self.ftp_username_frame = ttk.Frame(self.othertools)
+        self.ftp_username_frame.pack(anchor='w', padx=10, pady=2)
+        self.ftp_username_lable = ttk.Label(self.ftp_username_frame, text="  用户名: ")
+        self.ftp_username_lable.pack(side=LEFT,padx=0,pady=0)
+        ftp_username = StringVar()
+        ftp_username.set(self.config.get('Settings', 'ftp_username'))
+        self.ftp_username_entry = ttk.Entry(self.ftp_username_frame, width=20)
+        self.ftp_username_entry.pack(side=LEFT,padx=5,pady=0)
+        self.ftp_username_entry.insert(END, ftp_username.get())
+
+        self.ftp_password_frame = ttk.Frame(self.othertools)
+        self.ftp_password_frame.pack(anchor='w', padx=10, pady=2)
+        self.ftp_password_lable = ttk.Label(self.ftp_password_frame, text="     密码: ")
+        self.ftp_password_lable.pack(side=LEFT,padx=0,pady=0)
+        ftp_password = StringVar()
+        ftp_password.set(self.config.get('Settings', 'ftp_password'))
+        self.ftp_password_entry = ttk.Entry(self.ftp_password_frame, width=20)
+        self.ftp_password_entry.pack(side=LEFT,padx=5,pady=0)
+        self.ftp_password_entry.insert(END, ftp_password.get())
+
+        self.ftp_target_file_frame = ttk.Frame(self.othertools)
+        self.ftp_target_file_frame.pack(anchor='w', padx=10, pady=2)
+        self.ftp_target_file_lable = ttk.Label(self.ftp_target_file_frame, text="下载文件名: ")
+        self.ftp_target_file_lable.pack(side=LEFT,padx=0,pady=0)
+        ftp_target_file = StringVar()
+        ftp_target_file.set(self.config.get('Settings', 'ftp_target_file'))
+        self.ftp_target_file_entry = ttk.Entry(self.ftp_target_file_frame, width=20)
+        self.ftp_target_file_entry.pack(side=LEFT,padx=5,pady=0)
+        self.ftp_target_file_entry.insert(END, ftp_target_file.get())
+        
+        self.ftp_target_path_frame = ttk.Frame(self.othertools)
+        self.ftp_target_path_frame.pack(anchor='w', padx=10, pady=2)
+        self.ftp_target_path_lable = ttk.Label(self.ftp_target_path_frame, text="   上传路径: ")
+        self.ftp_target_path_lable.pack(side=LEFT,padx=0,pady=0)
+        ftp_target_path = StringVar()
+        ftp_target_path.set(self.config.get('Settings', 'ftp_target_path'))
+        self.ftp_target_path_entry = ttk.Entry(self.ftp_target_path_frame, width=20)
+        self.ftp_target_path_entry.pack(side=LEFT,padx=5,pady=0)
+        self.ftp_target_path_entry.insert(END, ftp_target_path.get())
 
         # 网络状态
         self.refresh_checkbutton = ttk.Checkbutton(self.dashboard, text="每秒自动刷新", variable = self.is_refresh, command=self.refresh, bootstyle="success-round-toggle")
@@ -589,26 +641,31 @@ class MultipleTest():
 
     def ftp_download(self):
         os.system(f'adb -s {self.device_serial_number} root')
-        ftp_download_command = 'lftp -u ftp,ftp ftp.speed.hinet.net -e \""set xfer:clobber true;mget test_9216m.zip test_9216m.zip test_9216m.zip test_9216m.zip test_9216m.zip;bye"\"'
+        ftp_download_command = f'lftp -u {self.ftp_username_entry.get()},{self.ftp_password_entry.get()} {self.ftp_host_entry.get()} -e \""set ssl:verify-certificate no;set xfer:clobber true;mget {self.ftp_target_file_entry.get()} {self.ftp_target_file_entry.get()} {self.ftp_target_file_entry.get()} {self.ftp_target_file_entry.get()} {self.ftp_target_file_entry.get()};bye"\"'
         push_script_command = f"echo '{ftp_download_command}' > /data/data/com.termux/files/home/.bashrc"
         os.system(f'adb -s {self.device_serial_number} shell "{push_script_command}"')
-        os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/test*"')
         os.system(f'adb -s {self.device_serial_number} shell am start -n com.termux/.app.TermuxActivity')
         self.wait_progress("FTP下载")
         os.system(f'adb -s {self.device_serial_number} shell am force-stop com.termux')
+        os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/{self.ftp_target_file_entry.get()}*"')
 
     def ftp_upload(self):
         os.system(f'adb -s {self.device_serial_number} root')
-        ftp_upload_command = 'lftp -u ftp,ftp ftp.speed.hinet.net -e \""set xfer:clobber true;mput file_up10g file_up10g file_up10g file_up10g file_up10g;bye"\"'
+        # make local file exist
+        is_file_exists = os.popen(f'adb shell "[ -f /data/data/com.termux/files/home/file_up10g_* ] && echo 1 || echo 0"').read().strip()
+        if is_file_exists == "0":
+            os.system(f"adb -s {self.device_serial_number} shell fallocate -l {int(10*10**9)} /data/data/com.termux/files/home/file_up10g_{self.random_alphanum()}")
+            time.sleep(0.1)
+        get_upfile_command = f'for f in /data/data/com.termux/files/home/file_up10g_*; do [ -f "$f" ] && basename "$f" && break; done'
+        upfile_name = os.popen(f'adb shell "{get_upfile_command}"').read().strip().split("\n")[0]
+        # push auto execute command to termux
+        ftp_upload_command = f'lftp -u {self.ftp_username_entry.get()},{self.ftp_password_entry.get()} {self.ftp_host_entry.get()} -e \""set ssl:verify-certificate no;set xfer:clobber true;cd {self.ftp_target_path_entry.get()};mput {upfile_name} {upfile_name} {upfile_name} {upfile_name} {upfile_name};bye"\"'
         push_script_command = f"echo '{ftp_upload_command}' > /data/data/com.termux/files/home/.bashrc"
         os.system(f'adb -s {self.device_serial_number} shell "{push_script_command}"')
-        os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/test*"')
-        is_file_exists = os.popen(f'adb shell "[ -f /data/data/com.termux/files/home/file_up10g ] && echo 1 || echo 0"').read().strip()
-        if is_file_exists == "0":
-            os.system(f"adb -s {self.device_serial_number} shell fallocate -l {int(10*10**9)} /data/data/com.termux/files/home/file_up10g")
         os.system(f'adb -s {self.device_serial_number} shell am start -n com.termux/.app.TermuxActivity')
         self.wait_progress("FTP上传")
         os.system(f'adb -s {self.device_serial_number} shell am force-stop com.termux')
+        os.system(f'adb -s {self.device_serial_number} shell "rm -f /data/data/com.termux/files/home/file*"')
 
     def wait_progress(self, label = ""):
         if not self.is_auto.get():
@@ -1089,6 +1146,18 @@ class MultipleTest():
         os.system(f'adb -s {self.device_serial_number} shell ip6tables -I OUTPUT -j ACCEPT')
         messagebox.showinfo("提示", f"已解包!")
 
+    def set_default_ftp(self):
+        self.ftp_host_entry.delete(0, END)
+        self.ftp_host_entry.insert(END, "ftp.speed.hinet.net")
+        self.ftp_username_entry.delete(0, END)
+        self.ftp_username_entry.insert(END, "ftp")
+        self.ftp_password_entry.delete(0, END)
+        self.ftp_password_entry.insert(END, "ftp")
+        self.ftp_target_file_entry.delete(0, END)
+        self.ftp_target_file_entry.insert(END, "test_9216m.zip")
+        self.ftp_target_path_entry.delete(0, END)
+        self.ftp_target_path_entry.insert(END, "uploads")
+
     #网络状态
     def refresh(self):
         if self.is_refresh.get():
@@ -1262,6 +1331,11 @@ class MultipleTest():
             'default_LTE_Band': self.config.get('Settings', 'default_LTE_Band'),
             'default_NSAorSA_Band': self.config.get('Settings', 'default_NSAorSA_Band'),
             'theme': self.theme_radio.get(),
+            'ftp_host': self.ftp_host_entry.get(),
+            'ftp_username': self.ftp_username_entry.get(),
+            'ftp_password': self.ftp_password_entry.get(),
+            'ftp_target_file': self.ftp_target_file_entry.get(),
+            'ftp_target_path': self.ftp_target_path_entry.get(),
         }
         
         script_dir = os.path.dirname(os.path.abspath(__file__))
